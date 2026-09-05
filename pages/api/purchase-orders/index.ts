@@ -95,19 +95,39 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
       await client.query('BEGIN');
       const seq = (await client.query('SELECT COUNT(*) FROM purchase_orders')).rows[0].count;
       const po_number = `PO-${new Date().getFullYear()}-${String(parseInt(seq) + 1).padStart(4, '0')}`;
-      const safeVendorId = isValidUuid(vendor_id) ? vendor_id : null;
+      let safeVendorId = null;
+      if (isValidUuid(vendor_id)) {
+        const vendorCheck = await client.query('SELECT 1 FROM contacts WHERE id = $1', [vendor_id]);
+        if (vendorCheck.rowCount && vendorCheck.rowCount > 0) {
+          safeVendorId = vendor_id;
+        }
+      }
+
+      let safeCreatedBy: string | null = null;
+      if (req.user?.id && isValidUuid(req.user.id)) {
+        const userCheck = await client.query('SELECT 1 FROM users WHERE id = $1', [req.user.id]);
+        if (userCheck.rowCount && userCheck.rowCount > 0) {
+          safeCreatedBy = req.user.id;
+        }
+      }
+
       const poRes = await client.query(
         `INSERT INTO purchase_orders (po_number, vendor_id, po_date, expected_delivery_date, status, subtotal, tax_amount, total_amount, notes, created_by)
          VALUES ($1,$2,$3,$4,'Draft',$5,$6,$7,$8,$9) RETURNING *`,
-        [po_number, safeVendorId, po_date, expected_delivery_date, subtotal, tax_amount, total_amount, notes, req.user?.id || null]
+        [po_number, safeVendorId, po_date, expected_delivery_date, subtotal, tax_amount, total_amount, notes, safeCreatedBy]
       );
       for (const item of items) {
-        const lineTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0);
-        const safeProductId = isValidUuid(item.product_id) ? item.product_id : null;
+        let safeProductId = null;
+        if (isValidUuid(item.product_id)) {
+          const productCheck = await client.query('SELECT 1 FROM products WHERE id = $1', [item.product_id]);
+          if (productCheck.rowCount && productCheck.rowCount > 0) {
+            safeProductId = item.product_id;
+          }
+        }
         await client.query(
-          `INSERT INTO purchase_order_items (purchase_order_id, product_id, description, quantity, unit_price, tax_rate, line_total)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-          [poRes.rows[0].id, safeProductId, item.description || '', parseFloat(item.quantity) || 0, parseFloat(item.unit_price) || 0, parseFloat(item.tax_rate) || 0, lineTotal]
+          `INSERT INTO purchase_order_items (purchase_order_id, product_id, description, quantity, unit_price, tax_rate)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [poRes.rows[0].id, safeProductId, item.description || '', parseFloat(item.quantity) || 0, parseFloat(item.unit_price) || 0, parseFloat(item.tax_rate) || 0]
         );
       }
       await client.query('COMMIT');

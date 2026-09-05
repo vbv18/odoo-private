@@ -1,6 +1,7 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { postVendorBill } from '@/lib/accounting-helpers';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -35,6 +36,11 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
       return res.status(400).json({
         message: `Payment amount (${paymentAmount}) exceeds balance due (${balanceDue.toFixed(2)})`,
       });
+    }
+
+    // Ensure the vendor bill is posted to general ledger first so COGS/Expenses and AP are properly recognized
+    if (!bill.journal_entry_id) {
+      await postVendorBill(client, id, req.user?.id || null);
     }
 
     const newPaidAmount = currentPaid + paymentAmount;

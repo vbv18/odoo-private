@@ -106,6 +106,33 @@ export default function VendorBillDetailPage() {
     }
   };
 
+  const [isPosting, setIsPosting] = useState(false);
+
+  const handlePostBill = async () => {
+    setIsPosting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/vendor-bills/${id}/post`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToastMessage('Bill posted successfully! Expenses and Accounts Payable updated.');
+        if (token) fetchBill(token);
+      } else {
+        alert(data.message || 'Failed to post bill');
+      }
+    } catch {
+      alert('Network error while posting bill');
+    } finally {
+      setIsPosting(false);
+    }
+  };
+
   const handleRegisterPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setPaymentError('');
@@ -177,6 +204,15 @@ export default function VendorBillDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {bill.status === 'Draft' && (
+              <Button
+                onClick={handlePostBill}
+                disabled={isPosting}
+                className="bg-[#2563EB] hover:bg-blue-700 text-white"
+              >
+                {isPosting ? 'Posting...' : 'Confirm & Post'}
+              </Button>
+            )}
             {bill.status !== 'Paid' && bill.status !== 'Cancelled' && (
               <Button
                 onClick={() => setPaymentModalOpen(true)}

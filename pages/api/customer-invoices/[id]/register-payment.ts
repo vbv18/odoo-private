@@ -1,6 +1,7 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { postCustomerInvoice } from '@/lib/accounting-helpers';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -34,6 +35,11 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
       return res.status(400).json({
         message: `Payment amount (${paymentAmount}) exceeds balance due (${balanceDue.toFixed(2)})`,
       });
+    }
+
+    // Ensure the invoice is posted to the general ledger first so Sales Revenue and AR are properly recognized
+    if (!invoice.journal_entry_id) {
+      await postCustomerInvoice(client, id, req.user?.id || null);
     }
 
     const newPaidAmount = currentPaid + paymentAmount;

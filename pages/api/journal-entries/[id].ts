@@ -17,7 +17,7 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse, id: st
   const dbOk = await isDbAvailable();
   if (!dbOk) {
     const entries = getJournalEntries();
-    const found = entries.find((e: any) => e.id === id);
+    const found: any = entries.find((e: any) => e.id === id);
     if (!found) return res.status(404).json({ message: 'Journal entry not found' });
     return res.status(200).json({
       entry: {
@@ -60,7 +60,7 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse, id: st
     });
   } catch (error: any) {
     const entries = getJournalEntries();
-    const found = entries.find((e: any) => e.id === id);
+    const found: any = entries.find((e: any) => e.id === id);
     if (found) {
       return res.status(200).json({ entry: { ...found, lines: found.lines || [] } });
     }

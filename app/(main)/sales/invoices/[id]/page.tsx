@@ -106,6 +106,33 @@ export default function CustomerInvoiceDetailPage() {
     }
   };
 
+  const [isPosting, setIsPosting] = useState(false);
+
+  const handlePostInvoice = async () => {
+    setIsPosting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/customer-invoices/${id}/post`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToastMessage('Invoice posted successfully! Revenue and Accounts Receivable updated.');
+        if (token) fetchInvoice(token);
+      } else {
+        alert(data.message || 'Failed to post invoice');
+      }
+    } catch {
+      alert('Network error while posting invoice');
+    } finally {
+      setIsPosting(false);
+    }
+  };
+
   const handleRegisterPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setPaymentError('');
@@ -176,6 +203,15 @@ export default function CustomerInvoiceDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {invoice.status === 'Draft' && (
+              <Button
+                onClick={handlePostInvoice}
+                disabled={isPosting}
+                className="bg-[#2563EB] hover:bg-blue-700 text-white"
+              >
+                {isPosting ? 'Posting...' : 'Confirm & Post'}
+              </Button>
+            )}
             {invoice.status !== 'Paid' && invoice.status !== 'Cancelled' && (
               <Button
                 onClick={() => setPaymentModalOpen(true)}
