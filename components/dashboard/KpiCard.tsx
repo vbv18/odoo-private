@@ -64,33 +64,33 @@ export function KpiCard({ kpi, isLoading }: KpiCardProps) {
   const trendColor = isGreen ? '#16A34A' : '#DC2626';
 
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-enterprise p-4.5 transition-all duration-150 hover:shadow-sm hover:border-gray-300 flex flex-col justify-between">
+    <div className="bg-white border border-[#E5E7EB] rounded-enterprise p-5 transition-all duration-150 hover:shadow-sm hover:border-gray-300 flex flex-col justify-between min-h-[140px]">
       <div>
         {/* Metric Label */}
         <div className="flex items-center justify-between">
-          <span className="text-[12px] font-medium text-[#667085]">
+          <span className="text-[13px] font-medium text-[#667085]">
             {kpi.title}
           </span>
         </div>
 
         {/* Large Value */}
-        <div className="mt-1.5 flex items-baseline justify-between">
-          <span className="text-[22px] sm:text-[24px] font-semibold tracking-tight text-[#111827] tabular-nums">
+        <div className="mt-2.5 flex items-baseline justify-between">
+          <span className="text-[26px] sm:text-[28px] font-semibold tracking-tight text-[#111827] tabular-nums leading-none">
             {kpi.formattedValue}
           </span>
         </div>
 
         {/* Sublabel context */}
-        <p className="text-[11px] text-[#98A2B3] mt-0.5 truncate">
+        <p className="text-[12px] text-[#98A2B3] mt-1.5">
           {kpi.sublabel}
         </p>
       </div>
 
       {/* Bottom delta & sparkline row */}
-      <div className="mt-3.5 pt-2.5 border-t border-[#F0F2F5] flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
+      <div className="mt-4 pt-3 border-t border-[#F0F2F5] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           <span
-            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+            className={`inline-flex items-center gap-0.5 px-2 py-1 rounded text-[11px] font-semibold ${
               isGreen
                 ? 'bg-emerald-50 text-[#16A34A]'
                 : 'bg-rose-50 text-[#DC2626]'
@@ -103,7 +103,7 @@ export function KpiCard({ kpi, isLoading }: KpiCardProps) {
             )}
             <span>{kpi.change}</span>
           </span>
-          <span className="text-[11px] text-[#98A2B3] truncate">
+          <span className="text-[11px] text-[#98A2B3]">
             {kpi.periodContext}
           </span>
         </div>
