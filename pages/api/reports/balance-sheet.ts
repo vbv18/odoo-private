@@ -1,13 +1,52 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { isDbAvailable } from '@/lib/db-safe';
+import { getChartOfAccounts } from '@/lib/mock-data';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ message: 'Method not allowed' });
 
-  try {
-    const { as_of } = req.query;
+  const { as_of } = req.query;
+  const dbOk = await isDbAvailable();
 
+  const getMockData = () => {
+    const coa = getChartOfAccounts();
+    const assets = coa.filter((r: any) => r.account_type === 'Asset');
+    const liabilities = coa.filter((r: any) => r.account_type === 'Liability');
+    const equity = coa.filter((r: any) => r.account_type === 'Capital');
+    const income = coa.filter((r: any) => r.account_type === 'Income');
+    const expenses = coa.filter((r: any) => r.account_type === 'Expense');
+
+    const totalIncome = income.reduce((sum: number, a: any) => sum + (parseFloat(a.current_balance) || 0), 0);
+    const totalExpense = expenses.reduce((sum: number, a: any) => sum + (parseFloat(a.current_balance) || 0), 0);
+    const currentYearEarnings = totalIncome - totalExpense;
+
+    const totalAssets = assets.reduce((sum: number, a: any) => sum + (parseFloat(a.current_balance) || 0), 0);
+    const totalLiabilities = liabilities.reduce((sum: number, l: any) => sum + (parseFloat(l.current_balance) || 0), 0);
+    const totalCapital = equity.reduce((sum: number, e: any) => sum + (parseFloat(e.current_balance) || 0), 0);
+    const totalEquity = totalCapital + currentYearEarnings;
+
+    return {
+      as_of: as_of || new Date().toISOString().split('T')[0],
+      assets,
+      liabilities,
+      equity,
+      currentYearEarnings,
+      totalAssets,
+      totalLiabilities,
+      totalEquity,
+      totalLiabilitiesAndEquity: totalLiabilities + totalEquity,
+      isBalanced: Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 1.0,
+      source: 'mock',
+    };
+  };
+
+  if (!dbOk) {
+    return res.status(200).json(getMockData());
+  }
+
+  try {
     // Get current balances from Chart of Accounts
     const result = await pool.query(`
       SELECT 
@@ -57,7 +96,7 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
       isBalanced: Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 1.0,
     });
   } catch (error: any) {
-    return res.status(500).json({ message: 'Failed to generate balance sheet', error: error.message });
+    return res.status(200).json(getMockData());
   }
 }
 

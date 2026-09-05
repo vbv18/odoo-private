@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { XIcon } from '@/components/icons';
-import PrintInvoiceModal from '@/components/PrintInvoiceModal';
 
 interface InvoiceDetail {
   id: string;
@@ -66,7 +65,6 @@ export default function CustomerInvoiceDetailPage() {
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [printModalOpen, setPrintModalOpen] = useState(false);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -105,6 +103,33 @@ export default function CustomerInvoiceDetailPage() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const [isPosting, setIsPosting] = useState(false);
+
+  const handlePostInvoice = async () => {
+    setIsPosting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/customer-invoices/${id}/post`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToastMessage('Invoice posted successfully! Revenue and Accounts Receivable updated.');
+        if (token) fetchInvoice(token);
+      } else {
+        alert(data.message || 'Failed to post invoice');
+      }
+    } catch {
+      alert('Network error while posting invoice');
+    } finally {
+      setIsPosting(false);
     }
   };
 
@@ -178,18 +203,15 @@ export default function CustomerInvoiceDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => setPrintModalOpen(true)}
-              className="flex items-center gap-1.5"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 6 2 18 2 18 9" />
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                <rect x="6" y="14" width="12" height="8" />
-              </svg>
-              <span>Print Invoice</span>
-            </Button>
+            {invoice.status === 'Draft' && (
+              <Button
+                onClick={handlePostInvoice}
+                disabled={isPosting}
+                className="bg-[#2563EB] hover:bg-blue-700 text-white"
+              >
+                {isPosting ? 'Posting...' : 'Confirm & Post'}
+              </Button>
+            )}
             {invoice.status !== 'Paid' && invoice.status !== 'Cancelled' && (
               <Button
                 onClick={() => setPaymentModalOpen(true)}
@@ -428,12 +450,6 @@ export default function CustomerInvoiceDetailPage() {
           </div>
         </div>
       )}
-
-      <PrintInvoiceModal
-        isOpen={printModalOpen}
-        onClose={() => setPrintModalOpen(false)}
-        invoice={invoice}
-      />
     </div>
   );
 }

@@ -31,32 +31,28 @@ async function handleGetTransactions(req: AuthenticatedRequest, res: NextApiResp
 
   try {
     const result = await pool.query(`
-      SELECT id::text, created_at as date, 'SO' as type, order_number as reference_no,
-        COALESCE(c.name, 'Customer') as partner, so.total_amount as amount, so.status, so.delivery_date as due_date, so.notes
+      SELECT so.id::text, so.created_at as date, 'SO' as type, so.so_number as reference_no,
+        c.name as partner, so.total_amount as amount, so.status, so.expected_delivery_date as due_date, so.notes
       FROM sales_orders so LEFT JOIN contacts c ON so.customer_id = c.id
       UNION ALL
-      SELECT id::text, created_at as date, 'PO' as type, order_number as reference_no,
-        COALESCE(c.name, 'Vendor') as partner, po.total_amount as amount, po.status, po.expected_date as due_date, po.notes
+      SELECT po.id::text, po.created_at as date, 'PO' as type, po.po_number as reference_no,
+        c.name as partner, po.total_amount as amount, po.status, po.expected_delivery_date as due_date, po.notes
       FROM purchase_orders po LEFT JOIN contacts c ON po.vendor_id = c.id
       UNION ALL
-      SELECT id::text, created_at as date, 'Invoice' as type, invoice_number as reference_no,
-        COALESCE(c.name, 'Customer') as partner, ci.total_amount as amount, ci.status, ci.due_date, ci.notes
+      SELECT ci.id::text, ci.created_at as date, 'Invoice' as type, ci.invoice_number as reference_no,
+        c.name as partner, ci.total_amount as amount, ci.status, ci.due_date, ci.notes
       FROM customer_invoices ci LEFT JOIN contacts c ON ci.customer_id = c.id
       UNION ALL
-      SELECT id::text, created_at as date, 'Bill' as type, bill_number as reference_no,
-        COALESCE(c.name, 'Vendor') as partner, vb.total_amount as amount, vb.status, vb.due_date, vb.notes
+      SELECT vb.id::text, vb.created_at as date, 'Bill' as type, vb.bill_number as reference_no,
+        c.name as partner, vb.total_amount as amount, vb.status, vb.due_date, vb.notes
       FROM vendor_bills vb LEFT JOIN contacts c ON vb.vendor_id = c.id
       UNION ALL
-      SELECT id::text, created_at as date, 'Payment' as type, payment_number as reference_no,
+      SELECT p.id::text, p.created_at as date, 'Payment' as type, p.payment_number as reference_no,
         COALESCE(c.name, 'General') as partner, p.amount, 'Paid' as status, NULL::date as due_date, p.notes
       FROM payments p LEFT JOIN contacts c ON p.partner_id = c.id
       ORDER BY date DESC LIMIT $1
     `, [parseInt(limit as string) || 50]);
-    const transactions = result.rows.map(tx => ({
-      ...tx,
-      amount: parseFloat(tx.amount) || 0,
-    }));
-    return res.status(200).json({ transactions });
+    return res.status(200).json({ transactions: result.rows });
   } catch (error: any) {
     console.error('Dashboard transactions fetch error:', error.message);
     // Fall back to mock data instead of empty
@@ -114,7 +110,7 @@ async function handleCreateTransaction(req: AuthenticatedRequest, res: NextApiRe
     const rand = Math.floor(100 + Math.random() * 900);
     let result;
     if (type === 'SO') {
-      result = await pool.query(`INSERT INTO sales_orders (order_number, customer_id, total_amount, status, delivery_date, notes, created_by) VALUES ($1,NULL,$2,'Draft',$3,$4,$5) RETURNING id::text, order_number as reference_no, 'SO' as type, total_amount as amount, status, created_at as date`, [`SO-2026-${rand}`, parsedAmount, dueDate || null, notes || null, req.user?.id || null]);
+      result = await pool.query(`INSERT INTO sales_orders (so_number, customer_id, total_amount, status, expected_delivery_date, notes, created_by) VALUES ($1,NULL,$2,'Draft',$3,$4,$5) RETURNING id::text, so_number as reference_no, 'SO' as type, total_amount as amount, status, created_at as date`, [`SO-2026-${rand}`, parsedAmount, dueDate || null, notes || null, req.user?.id || null]);
     } else if (type === 'Invoice') {
       result = await pool.query(`INSERT INTO customer_invoices (invoice_number, customer_id, invoice_date, due_date, total_amount, status, notes, created_by) VALUES ($1,NULL,NOW(),$2,$3,'Sent',$4,$5) RETURNING id::text, invoice_number as reference_no, 'Invoice' as type, total_amount as amount, status, created_at as date`, [`INV-2026-${rand}`, dueDate || null, parsedAmount, notes || null, req.user?.id || null]);
     } else if (type === 'Bill') {

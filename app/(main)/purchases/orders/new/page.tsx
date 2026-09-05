@@ -14,9 +14,11 @@ interface Contact {
 
 interface Product {
   id: string;
-  product_name: string;
-  cost_price: number;
-  unit_of_measure: string;
+  name?: string;
+  product_name?: string;
+  cost_price?: number;
+  purchase_price?: number;
+  unit_of_measure?: string;
 }
 
 interface LineItem {
@@ -86,8 +88,8 @@ export default function NewPurchaseOrderPage() {
       next[index] = {
         ...next[index],
         product_id: productId,
-        description: selected ? selected.product_name : '',
-        unit_price: selected ? parseFloat(String(selected.cost_price)) || 0 : 0,
+        description: selected ? (selected.product_name || selected.name || '') : '',
+        unit_price: selected ? (parseFloat(String(selected.cost_price ?? selected.purchase_price ?? 0)) || 0) : 0,
       };
       return next;
     });
@@ -242,7 +244,7 @@ export default function NewPurchaseOrderPage() {
                         <option value="">Select product...</option>
                         {products.map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.product_name}
+                            {p.product_name || p.name || 'Product'}
                           </option>
                         ))}
                       </select>
@@ -250,7 +252,7 @@ export default function NewPurchaseOrderPage() {
                     <td className="py-2.5 px-3">
                       <input
                         type="text"
-                        value={item.description}
+                        value={item.description || ''}
                         onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
                         placeholder="Item details..."
                         className="w-full px-2.5 py-1.5 text-[13px] border border-[#E5E7EB] rounded-enterprise focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
@@ -261,7 +263,7 @@ export default function NewPurchaseOrderPage() {
                         type="number"
                         min="1"
                         step="1"
-                        value={item.quantity}
+                        value={item.quantity ?? 1}
                         onChange={(e) => handleItemChange(idx, 'quantity', parseFloat(e.target.value) || 0)}
                         className="w-full px-2.5 py-1.5 text-[13px] border border-[#E5E7EB] rounded-enterprise text-right focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                       />
@@ -271,7 +273,7 @@ export default function NewPurchaseOrderPage() {
                         type="number"
                         min="0"
                         step="0.01"
-                        value={item.unit_price}
+                        value={item.unit_price ?? 0}
                         onChange={(e) => handleItemChange(idx, 'unit_price', parseFloat(e.target.value) || 0)}
                         className="w-full px-2.5 py-1.5 text-[13px] border border-[#E5E7EB] rounded-enterprise text-right focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                       />

@@ -1,6 +1,7 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, authenticateToken } from '@/lib/auth-middleware';
+import { postVendorBill } from '@/lib/accounting-helpers';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -35,6 +36,11 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
       return res.status(400).json({
         message: `Payment amount (${paymentAmount}) exceeds balance due (${balanceDue.toFixed(2)})`,
       });
+    }
+
+    // Ensure the vendor bill is posted to general ledger first so COGS/Expenses and AP are properly recognized
+    if (!bill.journal_entry_id) {
+      await postVendorBill(client, id, req.user?.id || null);
     }
 
     const newPaidAmount = currentPaid + paymentAmount;
@@ -73,12 +79,10 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
     );
 
     // 5. Auto-create double-entry Journal Entry
-    // Find Accounts Payable (2110) and Bank/Cash (1120 or 1110) accounts
     const apRes = await client.query("SELECT id FROM chart_of_accounts WHERE account_code = '2110' LIMIT 1");
     const bankCode = payMethod === 'Cash' ? '1110' : '1120';
     const bankRes = await client.query("SELECT id FROM chart_of_accounts WHERE account_code = $1 LIMIT 1", [bankCode]);
 
-    // Find or create default Purchase Journal
     const journalRes = await client.query("SELECT id FROM journals WHERE journal_type = 'Bank' OR journal_type = 'Cash' LIMIT 1");
     const journalId = journalRes.rows[0]?.id || null;
 

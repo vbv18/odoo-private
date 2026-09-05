@@ -1,6 +1,7 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, authenticateToken } from '@/lib/auth-middleware';
+import { postCustomerInvoice } from '@/lib/accounting-helpers';
 import { getStoredInvoiceById, updateStoredInvoice } from '@/lib/invoices-store';
 import { saveStoredPayment } from '@/lib/payments-store';
 
@@ -37,6 +38,11 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
         return res.status(400).json({
           message: `Payment amount (${paymentAmount}) exceeds balance due (${balanceDue.toFixed(2)})`,
         });
+      }
+
+      // Ensure the invoice is posted to the general ledger first
+      if (!invoice.journal_entry_id) {
+        await postCustomerInvoice(client, id, req.user?.id || null);
       }
 
       const newPaidAmount = currentPaid + paymentAmount;

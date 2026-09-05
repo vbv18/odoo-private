@@ -1,6 +1,9 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { isDbAvailable } from '@/lib/db-safe';
+import { getProducts } from '@/lib/mock-data';
+import { normalizeProduct } from './index';
 
 // GET /api/products/[id] - Get product by ID
 // PUT /api/products/[id] - Update product
@@ -24,6 +27,14 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
 }
 
 async function handleGetProduct(req: AuthenticatedRequest, res: NextApiResponse, id: string) {
+  const dbOk = await isDbAvailable();
+  if (!dbOk) {
+    const products = getProducts().map(normalizeProduct);
+    const found = products.find((p: any) => p.id === id);
+    if (!found) return res.status(404).json({ message: 'Product not found' });
+    return res.status(200).json({ product: found });
+  }
+
   try {
     const result = await pool.query(
       `SELECT * FROM products WHERE id = $1`,
@@ -34,9 +45,11 @@ async function handleGetProduct(req: AuthenticatedRequest, res: NextApiResponse,
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    return res.status(200).json({ product: result.rows[0] });
+    return res.status(200).json({ product: normalizeProduct(result.rows[0]) });
   } catch (error: any) {
-    console.error('Error fetching product:', error);
+    const products = getProducts().map(normalizeProduct);
+    const found = products.find((p: any) => p.id === id);
+    if (found) return res.status(200).json({ product: found });
     return res.status(500).json({ message: 'Failed to fetch product', error: error.message });
   }
 }

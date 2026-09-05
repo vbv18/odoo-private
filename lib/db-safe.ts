@@ -13,16 +13,23 @@ let _dbAvailable: boolean | null = null; // null = not yet tested
 
 function getPool(): Pool {
   if (!_pool) {
-    _pool = new Pool({
-      host: process.env.DB_HOST || 'localhost',
-      port: Number(process.env.DB_PORT || 5432),
-      database: process.env.DB_NAME || 'ledgercraft',
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'password',
-      connectionTimeoutMillis: 3000, // fail fast
-      idleTimeoutMillis: 10000,
-      max: 5,
-    });
+    _pool = process.env.DATABASE_URL
+      ? new Pool({
+          connectionString: process.env.DATABASE_URL,
+          connectionTimeoutMillis: 3000,
+          idleTimeoutMillis: 10000,
+          max: 5,
+        })
+      : new Pool({
+          host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
+          port: Number(process.env.DB_PORT || process.env.PGPORT || 5432),
+          database: process.env.DB_NAME || process.env.PGDATABASE || 'ledgercraft',
+          user: process.env.DB_USER || process.env.PGUSER || 'postgres',
+          password: process.env.DB_PASSWORD || process.env.PGPASSWORD || 'postgres123',
+          connectionTimeoutMillis: 3000, // fail fast
+          idleTimeoutMillis: 10000,
+          max: 5,
+        });
   }
   return _pool;
 }

@@ -122,16 +122,22 @@ export default function NewJournalEntryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+
     if (!formData.journal_id) {
       setErrors({ journal_id: 'Please select a journal' });
       return;
     }
-    if (!isBalanced) {
-      setErrors({ general: 'Journal entry must be balanced (Total Debits = Total Credits) and non-zero.' });
+    if (lines.some((l) => !l.account_id)) {
+      setErrors({ general: 'Every line item must have an account selected.' });
       return;
     }
-    if (lines.some((l) => !l.account_id)) {
-      setErrors({ general: 'Every line item must have an account selected' });
+    if (!isBalanced) {
+      setErrors({
+        general: totalDebit === 0 && totalCredit === 0
+          ? 'Please enter debit and credit amounts for the line items.'
+          : `Journal entry must be balanced: Total Debits (${formatCurrency(totalDebit)}) must equal Total Credits (${formatCurrency(totalCredit)}). Current difference: ${formatCurrency(difference)}.`,
+      });
       return;
     }
 
@@ -145,8 +151,22 @@ export default function NewJournalEntryPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          ...formData,
-          lines,
+          journal_id: formData.journal_id,
+          entry_date: formData.entry_date,
+          reference_number: formData.reference_number,
+          reference: formData.reference_number,
+          description: formData.description,
+          narration: formData.description,
+          status: 'Draft',
+          lines: lines.map((l) => ({
+            account_id: l.account_id,
+            partner_id: l.partner_id || null,
+            description: l.description || '',
+            debit: parseFloat(String(l.debit_amount)) || 0,
+            debit_amount: parseFloat(String(l.debit_amount)) || 0,
+            credit: parseFloat(String(l.credit_amount)) || 0,
+            credit_amount: parseFloat(String(l.credit_amount)) || 0,
+          })),
         }),
       });
       const data = await res.json();
@@ -353,7 +373,7 @@ export default function NewJournalEntryPage() {
           <Button type="button" variant="secondary" onClick={() => router.back()}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting || !isBalanced}>
+          <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Creating Entry...' : 'Create Draft Entry'}
           </Button>
         </div>

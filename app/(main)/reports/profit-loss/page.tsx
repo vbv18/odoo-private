@@ -30,6 +30,8 @@ export default function ProfitAndLossPage() {
   const router = useRouter();
   const [data, setData] = useState<ProfitLossData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [fromDate, setFromDate] = useState('2026-01-01');
+  const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -37,13 +39,18 @@ export default function ProfitAndLossPage() {
       router.push('/login');
       return;
     }
-    fetchReport(token);
+    fetchReport(token, fromDate, toDate);
   }, [router]);
 
-  const fetchReport = async (token: string) => {
+  const fetchReport = async (token: string, from?: string, to?: string) => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/reports/profit-loss', {
+      const params = new URLSearchParams();
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
+
+      const res = await fetch(`/api/reports/profit-loss${queryStr}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -57,7 +64,12 @@ export default function ProfitAndLossPage() {
     }
   };
 
-  if (isLoading) {
+  const handleApplyFilter = () => {
+    const token = localStorage.getItem('token');
+    if (token) fetchReport(token, fromDate, toDate);
+  };
+
+  if (isLoading && !data) {
     return (
       <div className="max-w-[1000px] mx-auto px-4 py-8 animate-pulse space-y-4">
         <div className="h-8 bg-gray-200 rounded w-1/4" />
@@ -77,9 +89,46 @@ export default function ProfitAndLossPage() {
             Operating Performance ({new Date(data.period.from).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })} - {new Date(data.period.to).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })})
           </p>
         </div>
-        <Button variant="secondary" onClick={() => window.print()} className="text-[12px]">
-          Print Statement
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="secondary" onClick={() => window.print()} className="text-[12px]">
+            Print Statement
+          </Button>
+        </div>
+      </div>
+
+      {/* Date Filter Bar */}
+      <div className="bg-white border border-[#E5E7EB] rounded-enterprise p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4 text-[13px]">
+          <div className="flex items-center gap-2">
+            <span className="text-[#667085] font-medium">From:</span>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="border border-[#D1D5DB] rounded-md px-2.5 py-1.5 text-[13px] text-[#111827] focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[#667085] font-medium">To:</span>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="border border-[#D1D5DB] rounded-md px-2.5 py-1.5 text-[13px] text-[#111827] focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <Button
+            variant="secondary"
+            onClick={handleApplyFilter}
+            disabled={isLoading}
+            className="text-[12px] py-1.5"
+          >
+            {isLoading ? 'Updating...' : 'Filter'}
+          </Button>
+        </div>
+        <div className="text-[12px] text-[#667085]">
+          Accrual Accounting (All Posted Entries)
+        </div>
       </div>
 
       {/* KPI Cards */}
