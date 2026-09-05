@@ -1,6 +1,4 @@
-'use client';
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { XIcon, PlusIcon } from '@/components/icons';
 import { Transaction, TransactionType } from '@/lib/dashboard-data';
 
@@ -23,12 +21,36 @@ export function NewTransactionModal({
   const [notes, setNotes] = useState('');
   const [itemDesc, setItemDesc] = useState('');
   const [dueDate, setDueDate] = useState('2026-09-30');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Sync type with initialType when modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      setType(initialType);
+    }
+  }, [isOpen, initialType]);
+
+  const resetForm = () => {
+    setPartner('');
+    setAmount('');
+    setNotes('');
+    setItemDesc('');
+    setDueDate('2026-09-30');
+    setIsSubmitting(false);
+  };
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!partner || !amount) return;
+    if (!partner || !amount || isSubmitting) return;
+
+    setIsSubmitting(true);
 
     const parsedAmount = parseFloat(amount.replace(/[^0-9.]/g, '')) || 50000;
     const refPrefix = type === 'Invoice' ? 'INV' : type === 'Bill' ? 'BILL' : type === 'SO' ? 'SO' : type === 'PO' ? 'PO' : 'JE';
@@ -37,7 +59,7 @@ export function NewTransactionModal({
 
     const newTx: Transaction = {
       id: `tx-new-${Date.now()}`,
-      date: '05 Sep 2026',
+      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       type,
       referenceNo,
       partner,
@@ -59,12 +81,13 @@ export function NewTransactionModal({
         {
           title: `${type} record created`,
           timestamp: 'Just now',
-          user: 'Vaibhav K.',
+          user: 'You',
         },
       ],
     };
 
     onCreateTransaction(newTx);
+    resetForm();
     onClose();
   };
 
@@ -73,7 +96,7 @@ export function NewTransactionModal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs transition-opacity"
-        onClick={onClose}
+        onClick={handleClose}
         aria-hidden="true"
       />
 
@@ -94,7 +117,7 @@ export function NewTransactionModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 text-[#667085] hover:text-[#111827] hover:bg-white rounded-md transition-colors"
           >
             <XIcon size={18} />
@@ -196,16 +219,17 @@ export function NewTransactionModal({
           <div className="pt-3 border-t border-[#E5E7EB] flex items-center justify-end gap-2.5">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-3.5 py-2 text-[13px] font-medium text-[#667085] hover:text-[#111827] transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-[13px] font-semibold text-white bg-[#2563EB] hover:bg-blue-700 rounded-enterprise transition-colors shadow-xs"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-[13px] font-semibold text-white bg-[#2563EB] hover:bg-blue-700 disabled:opacity-60 rounded-enterprise transition-colors shadow-xs"
             >
-              Confirm & Post Entry
+              {isSubmitting ? 'Posting...' : 'Confirm & Post Entry'}
             </button>
           </div>
         </form>

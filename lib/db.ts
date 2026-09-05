@@ -15,4 +15,5 @@ export const query = <T extends QueryResultRow = QueryResultRow>(
   return pool.query<T>(text, params);
 };
 
+export { pool };
 export default pool;

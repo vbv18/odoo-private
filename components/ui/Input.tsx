@@ -2,16 +2,23 @@ import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
   error?: string;
 }
 
-export const Input: React.FC<InputProps> = ({ error, type = 'text', className = '', ...props }) => {
+export const Input: React.FC<InputProps> = ({ label, error, type = 'text', className = '', id, ...props }) => {
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
   const inputType = isPassword && showPassword ? 'text' : type;
 
   return (
     <div className="w-full">
+      {label && (
+        <label htmlFor={id} className="block text-[13px] font-medium text-[#111827] mb-1.5">
+          {label}
+          {props.required && <span className="text-[#DC2626] ml-1">*</span>}
+        </label>
+      )}
       <div className="relative">
         <input
           type={inputType}

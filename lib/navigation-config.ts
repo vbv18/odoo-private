@@ -60,6 +60,18 @@ export const NAVIGATION_CONFIG = {
       icon: 'ChartOfAccountsIcon',
       roles: ['Admin', 'Accountant'] as UserRole[],
     },
+    {
+      name: 'Journals',
+      href: '/journals',
+      icon: 'JournalEntriesIcon',
+      roles: ['Admin', 'Accountant'] as UserRole[],
+    },
+    {
+      name: 'Budgets',
+      href: '/budgets',
+      icon: 'BudgetsIcon',
+      roles: ['Admin', 'Accountant'] as UserRole[],
+    },
   ],
 
   // Reports Section
@@ -80,6 +92,18 @@ export const NAVIGATION_CONFIG = {
       name: 'Budget Report',
       href: '/reports/budget-report',
       icon: 'BudgetsIcon',
+      roles: ['Admin', 'Accountant'] as UserRole[],
+    },
+    {
+      name: 'Trial Balance',
+      href: '/reports/trial-balance',
+      icon: 'ReportIcon',
+      roles: ['Admin', 'Accountant'] as UserRole[],
+    },
+    {
+      name: 'General Ledger',
+      href: '/reports/ledger',
+      icon: 'ReportIcon',
       roles: ['Admin', 'Accountant'] as UserRole[],
     },
   ],

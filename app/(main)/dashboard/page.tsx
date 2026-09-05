@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Header } from '@/components/dashboard/Header';
 import { KpiRow } from '@/components/dashboard/KpiCard';
 import { SalesPurchaseSnapshot } from '@/components/dashboard/SalesPurchaseSnapshot';
@@ -21,8 +20,25 @@ import {
 } from '@/lib/dashboard-data';
 import { CheckIcon, XIcon } from '@/components/icons';
 
+const LS_KEY = 'ledgercraft_transactions';
+
+function loadFromLocalStorage(): Transaction[] | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Transaction[];
+  } catch {
+    return null;
+  }
+}
+
+function saveToLocalStorage(txs: Transaction[]) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(txs));
+  } catch {}
+}
+
 export default function Dashboard() {
-  const router = useRouter();
   const { setMobileSidebarOpen } = useSidebar();
   const [selectedPeriod, setSelectedPeriod] = useState('This Month (September 2026)');
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
@@ -35,11 +51,58 @@ export default function Dashboard() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
+    const token = localStorage.getItem('token') || '';
+
+    // Hydrate from localStorage immediately
+    const cached = loadFromLocalStorage();
+    if (cached && cached.length > 0) {
+      setTransactions(cached);
     }
-  }, [router]);
+
+    // Fetch fresher data from API
+    if (token) fetchTransactionsFromApi(token);
+  }, []);
+
+  const fetchTransactionsFromApi = async (token: string) => {
+    try {
+      const res = await fetch('/api/dashboard/transactions', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.transactions && data.transactions.length > 0) {
+          // Map API rows to the Transaction shape used by the UI
+          const mapped: Transaction[] = data.transactions.map((t: any) => ({
+            id: t.id || `tx-${Date.now()}`,
+            date: t.date
+              ? new Date(t.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+              : '05 Sep 2026',
+            type: t.type as TransactionType,
+            referenceNo: t.reference_no || t.type,
+            partner: t.partner || '—',
+            amount: parseFloat(t.amount) || 0,
+            status: t.status || 'Draft',
+            dueDate: t.due_date
+              ? new Date(t.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+              : undefined,
+            notes: t.notes || undefined,
+            lineItems: [],
+            timeline: [{ title: `${t.type} created`, timestamp: 'From database', user: 'System' }],
+          }));
+          // Merge: DB records first, then any localStorage-only entries not yet in DB
+          setTransactions((prev) => {
+            const dbRefs = new Set(mapped.map((m) => m.referenceNo));
+            const localOnly = prev.filter((p) => !dbRefs.has(p.referenceNo) && p.id.startsWith('tx-new'));
+            const merged = [...mapped, ...localOnly];
+            saveToLocalStorage(merged);
+            return merged;
+          });
+        }
+      }
+    } catch {
+      // API unavailable — keep localStorage / initial data
+    }
+  };
 
   // Show temporary toast notification
   const showToast = (message: string) => {
@@ -55,9 +118,14 @@ export default function Dashboard() {
     setNewTxModalOpen(true);
   };
 
-  // Create new transaction handler
-  const handleCreateTransaction = (newTx: Transaction) => {
-    setTransactions((prev) => [newTx, ...prev]);
+  // Create new transaction handler — saves to localStorage immediately + API in background
+  const handleCreateTransaction = async (newTx: Transaction) => {
+    // Optimistically update UI and localStorage
+    setTransactions((prev) => {
+      const updated = [newTx, ...prev];
+      saveToLocalStorage(updated);
+      return updated;
+    });
 
     // Update receivables or payables KPI dynamically
     if (newTx.type === 'Invoice' || newTx.type === 'SO') {
@@ -95,13 +163,37 @@ export default function Dashboard() {
     }
 
     showToast(`Recorded ${newTx.type} ${newTx.referenceNo} for ${newTx.partner}`);
+
+    // Persist to DB in background (non-blocking)
+    try {
+      const token = localStorage.getItem('token');
+      await fetch('/api/dashboard/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type: newTx.type,
+          partner: newTx.partner,
+          amount: newTx.amount,
+          dueDate: newTx.dueDate,
+          notes: newTx.notes,
+          itemDesc: newTx.lineItems[0]?.description,
+        }),
+      });
+    } catch {
+      // DB save failed — data is still safe in localStorage
+    }
   };
 
   // Update status (e.g. mark settled from drawer)
   const handleUpdateStatus = (id: string, newStatus: Transaction['status']) => {
-    setTransactions((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t))
-    );
+    setTransactions((prev) => {
+      const updated = prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t));
+      saveToLocalStorage(updated);
+      return updated;
+    });
     showToast(`Updated transaction status to ${newStatus}`);
   };
 
@@ -159,8 +251,10 @@ export default function Dashboard() {
   // Toggle skeleton loading simulation
   const handleToggleLoading = () => {
     setIsLoading(true);
+    const token = localStorage.getItem('token') || '';
     setTimeout(() => {
       setIsLoading(false);
+      fetchTransactionsFromApi(token);
       showToast('Loaded fresh enterprise ledger data');
     }, 1200);
   };

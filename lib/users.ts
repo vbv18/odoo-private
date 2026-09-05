@@ -73,11 +73,44 @@ export function createUser(input: {
     email,
     full_name: input.name || loginId,
     password_hash: input.passwordHash,
-    role: input.role || 'user',
+    role: input.role || 'Contact',
     is_active: true,
   };
 
   users.push(user);
   writeUsers(users);
   return user;
+}
+
+export function getAllUsers(): Omit<StoredUser, 'password_hash'>[] {
+  return readUsers().map(({ password_hash, ...u }) => u);
+}
+
+export function getUserById(id: string): Omit<StoredUser, 'password_hash'> | undefined {
+  const user = readUsers().find((u) => u.id === id);
+  if (!user) return undefined;
+  const { password_hash, ...rest } = user;
+  return rest;
+}
+
+export function updateUser(
+  id: string,
+  data: Partial<Pick<StoredUser, 'full_name' | 'email' | 'role' | 'is_active'>>
+): Omit<StoredUser, 'password_hash'> | undefined {
+  const users = readUsers();
+  const index = users.findIndex((u) => u.id === id);
+  if (index === -1) return undefined;
+
+  users[index] = { ...users[index], ...data };
+  writeUsers(users);
+  const { password_hash, ...rest } = users[index];
+  return rest;
+}
+
+export function deleteUser(id: string): boolean {
+  const users = readUsers();
+  const filtered = users.filter((u) => u.id !== id);
+  if (filtered.length === users.length) return false;
+  writeUsers(filtered);
+  return true;
 }
