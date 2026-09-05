@@ -26,8 +26,8 @@ export function AiInsightDrawer({
         aria-hidden="true"
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-white border-l border-[#E5E7EB] shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
+        <div className="w-screen max-w-full sm:max-w-md bg-white border-l border-[#E5E7EB] shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
           {/* Header */}
           <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-blue-50/50">
             <div className="flex items-center gap-2.5">
@@ -105,7 +105,7 @@ export function AiInsightDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-2 text-[12px] font-medium text-[#667085] hover:text-[#111827]"
+              className="px-3 py-2 text-[12px] font-medium text-[#667085] hover:text-[#111827] rounded-enterprise transition-colors"
             >
               Dismiss
             </button>
@@ -115,7 +115,7 @@ export function AiInsightDrawer({
                 onActionComplete(`Applied AI recommendation: ${insight.actionText}`);
                 onClose();
               }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-blue-700 rounded-lg shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-blue-700 rounded-enterprise shadow-xs transition-colors"
             >
               <CheckIcon size={14} />
               <span>{insight.actionText}</span>

@@ -38,8 +38,8 @@ export function TransactionDetailDrawer({
         aria-hidden="true"
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-lg bg-white border-l border-[#E5E7EB] shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
+        <div className="w-screen max-w-full sm:max-w-lg bg-white border-l border-[#E5E7EB] shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
           {/* Top Drawer Header */}
           <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-[#F7F8FA]/80">
             <div className="flex items-center gap-2.5">
@@ -229,7 +229,7 @@ export function TransactionDetailDrawer({
             <button
               type="button"
               onClick={() => alert(`Downloading PDF statement for ${transaction.referenceNo}...`)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-[#111827] bg-white border border-[#E5E7EB] rounded-lg hover:bg-gray-50 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-[#111827] bg-white border border-[#E5E7EB] rounded-enterprise hover:bg-gray-50 transition-colors shadow-2xs"
             >
               <DownloadIcon size={14} className="text-[#667085]" />
               <span>Download PDF</span>
@@ -245,7 +245,7 @@ export function TransactionDetailDrawer({
                     }
                     onClose();
                   }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[12px] font-semibold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-lg transition-colors shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-blue-700 rounded-enterprise transition-colors shadow-xs"
                 >
                   <CheckIcon size={14} />
                   <span>Mark as Settled</span>

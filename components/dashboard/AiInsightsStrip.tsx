@@ -36,7 +36,7 @@ export function AiInsightsStrip({ onReviewInsight, isLoading }: AiInsightsStripP
 
   return (
     <section aria-label="AI Intelligence Insights">
-      <div className="bg-white border border-[#E5E7EB] border-l-[3px] border-l-[#2563EB] rounded-xl p-4 sm:p-5 shadow-2xs">
+      <div className="bg-white border border-[#E5E7EB] border-l-[3px] border-l-[#2563EB] rounded-enterprise p-4 sm:p-5 shadow-2xs">
         {/* Strip Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#F0F2F5]">
           <div className="flex items-center gap-2">

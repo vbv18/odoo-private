@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { XIcon, PlusIcon, FileTextIcon } from '@/components/icons';
+import { XIcon, PlusIcon } from '@/components/icons';
 import { Transaction, TransactionType } from '@/lib/dashboard-data';
 
 interface NewTransactionModalProps {
@@ -69,61 +69,64 @@ export function NewTransactionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-gray-900/40 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-gray-900/50 backdrop-blur-xs transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-[#E5E7EB] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col bg-white rounded-enterprise shadow-2xl border border-[#E5E7EB] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Header */}
-        <div className="px-5 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-[#F7F8FA]">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-[#16A34A]/10 text-[#16A34A] flex items-center justify-center">
+        <div className="px-5 py-4 border-b border-[#E5E7EB] flex items-center justify-between bg-[#F7F8FA] shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-enterprise bg-blue-50 text-[#2563EB] flex items-center justify-center border border-blue-200">
               <PlusIcon size={16} />
             </div>
-            <h2 className="text-[15px] font-semibold text-[#111827]">
-              Create New Transaction
-            </h2>
+            <div>
+              <h2 className="text-[15px] font-semibold text-[#111827]">
+                Create New Transaction
+              </h2>
+              <p className="text-[11px] text-[#667085]">Post a financial entry to the general ledger</p>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-[#667085] hover:text-[#111827] rounded-md transition-colors"
+            className="p-1.5 text-[#667085] hover:text-[#111827] hover:bg-white rounded-md transition-colors"
           >
             <XIcon size={18} />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        {/* Form Body Scrollable */}
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
           <div>
-            <label className="block text-[12px] font-medium text-[#111827] mb-1">
+            <label className="block text-[12px] font-semibold text-[#111827] mb-1.5">
               Transaction Type
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
               {(['SO', 'PO', 'Invoice', 'Bill', 'Journal'] as TransactionType[]).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setType(t)}
-                  className={`py-1.5 px-2 rounded-lg text-[12px] font-medium border transition-colors ${
+                  className={`py-1.5 px-2 rounded-enterprise text-[12px] font-semibold border transition-colors ${
                     type === t
-                      ? 'bg-[#16A34A] text-white border-[#16A34A]'
+                      ? 'bg-[#2563EB] text-white border-[#2563EB] shadow-xs'
                       : 'bg-white text-[#667085] border-[#E5E7EB] hover:bg-[#F7F8FA]'
                   }`}
                 >
-                  {t === 'SO' ? 'Sales Order' : t === 'PO' ? 'Purchase Order' : t}
+                  {t === 'SO' ? 'SO' : t === 'PO' ? 'PO' : t}
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-[12px] font-medium text-[#111827] mb-1">
+            <label className="block text-[12px] font-semibold text-[#111827] mb-1">
               Partner / Counterparty
             </label>
             <input
@@ -132,13 +135,13 @@ export function NewTransactionModal({
               value={partner}
               onChange={(e) => setPartner(e.target.value)}
               placeholder="e.g. Apex Logistics or GreenLeaf Timber"
-              className="w-full px-3 py-2 text-[13px] bg-white border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-hidden"
+              className="w-full px-3 py-2 text-[13px] bg-white border border-[#E5E7EB] rounded-enterprise text-[#111827] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] focus:outline-hidden"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[12px] font-medium text-[#111827] mb-1">
+              <label className="block text-[12px] font-semibold text-[#111827] mb-1">
                 Amount (INR ₹)
               </label>
               <input
@@ -147,24 +150,24 @@ export function NewTransactionModal({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="45000"
-                className="w-full px-3 py-2 text-[13px] bg-white border border-[#E5E7EB] rounded-lg text-[#111827] tabular-nums focus:outline-hidden"
+                className="w-full px-3 py-2 text-[13px] bg-white border border-[#E5E7EB] rounded-enterprise text-[#111827] tabular-nums focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] focus:outline-hidden"
               />
             </div>
             <div>
-              <label className="block text-[12px] font-medium text-[#111827] mb-1">
+              <label className="block text-[12px] font-semibold text-[#111827] mb-1">
                 Settlement Due Date
               </label>
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 text-[13px] bg-white border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-hidden"
+                className="w-full px-3 py-2 text-[13px] bg-white border border-[#E5E7EB] rounded-enterprise text-[#111827] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] focus:outline-hidden"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[12px] font-medium text-[#111827] mb-1">
+            <label className="block text-[12px] font-semibold text-[#111827] mb-1">
               Primary Item Description
             </label>
             <input
@@ -172,12 +175,12 @@ export function NewTransactionModal({
               value={itemDesc}
               onChange={(e) => setItemDesc(e.target.value)}
               placeholder="e.g. 10x Ergonomic Oak Desks"
-              className="w-full px-3 py-2 text-[13px] bg-white border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-hidden"
+              className="w-full px-3 py-2 text-[13px] bg-white border border-[#E5E7EB] rounded-enterprise text-[#111827] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] focus:outline-hidden"
             />
           </div>
 
           <div>
-            <label className="block text-[12px] font-medium text-[#111827] mb-1">
+            <label className="block text-[12px] font-semibold text-[#111827] mb-1">
               Audit Notes
             </label>
             <textarea
@@ -185,7 +188,7 @@ export function NewTransactionModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Optional notes for internal ledger clearance..."
-              className="w-full px-3 py-2 text-[13px] bg-white border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-hidden resize-none"
+              className="w-full px-3 py-2 text-[13px] bg-white border border-[#E5E7EB] rounded-enterprise text-[#111827] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] focus:outline-hidden resize-none"
             />
           </div>
 
@@ -200,7 +203,7 @@ export function NewTransactionModal({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-[13px] font-semibold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-lg transition-colors shadow-xs"
+              className="px-4 py-2 text-[13px] font-semibold text-white bg-[#2563EB] hover:bg-blue-700 rounded-enterprise transition-colors shadow-xs"
             >
               Confirm & Post Entry
             </button>

@@ -48,7 +48,7 @@ function MicroSparkline({ data, color }: { data: number[]; color: string }) {
 export function KpiCard({ kpi, isLoading }: KpiCardProps) {
   if (isLoading) {
     return (
-      <div className="bg-white border border-[#E5E7EB] rounded-xl p-4.5 space-y-3 animate-pulse">
+      <div className="bg-white border border-[#E5E7EB] rounded-enterprise p-4.5 space-y-3 animate-pulse">
         <div className="h-3 w-28 bg-gray-200 rounded-sm" />
         <div className="h-7 w-36 bg-gray-200 rounded-sm" />
         <div className="flex items-center justify-between pt-1">
@@ -64,7 +64,7 @@ export function KpiCard({ kpi, isLoading }: KpiCardProps) {
   const trendColor = isGreen ? '#16A34A' : '#DC2626';
 
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-xl p-4.5 transition-all duration-150 hover:shadow-sm hover:border-gray-300 flex flex-col justify-between">
+    <div className="bg-white border border-[#E5E7EB] rounded-enterprise p-4.5 transition-all duration-150 hover:shadow-sm hover:border-gray-300 flex flex-col justify-between">
       <div>
         {/* Metric Label */}
         <div className="flex items-center justify-between">
@@ -90,7 +90,7 @@ export function KpiCard({ kpi, isLoading }: KpiCardProps) {
       <div className="mt-3.5 pt-2.5 border-t border-[#F0F2F5] flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <span
-            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium ${
+            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold ${
               isGreen
                 ? 'bg-emerald-50 text-[#16A34A]'
                 : 'bg-rose-50 text-[#DC2626]'
@@ -120,7 +120,7 @@ export function KpiCard({ kpi, isLoading }: KpiCardProps) {
 export function KpiRow({ kpis, isLoading }: { kpis: KpiItem[]; isLoading?: boolean }) {
   return (
     <section aria-label="Key Performance Indicators" className="w-full">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {kpis.map((kpi) => (
           <KpiCard key={kpi.id} kpi={kpi} isLoading={isLoading} />
         ))}

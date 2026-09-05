@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { Logo } from '@/components/ui/Logo';
 import {
-  LogoIcon,
   DashboardIcon,
   ChartOfAccountsIcon,
   JournalEntriesIcon,
@@ -17,9 +17,9 @@ import {
   SettingsIcon,
   HelpIcon,
   ChevronDownIcon,
-  ChevronRightIcon,
   XIcon,
   CheckIcon,
+  LogOutIcon,
 } from '@/components/icons';
 
 interface SidebarProps {
@@ -27,11 +27,37 @@ interface SidebarProps {
   onCloseMobile: () => void;
 }
 
+interface CurrentUser {
+  name?: string;
+  email?: string;
+  role?: string;
+  loginId?: string;
+}
+
 export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [currentWorkspace, setCurrentWorkspace] = useState('Urban Furniture Pvt Ltd');
+  const [user, setUser] = useState<CurrentUser | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        setUser(JSON.parse(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    router.push('/login');
+  };
 
   const workspaces = [
     { id: '1', name: 'Urban Furniture Pvt Ltd', code: 'UF-MUM', active: true },
@@ -54,6 +80,16 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
     { name: 'Anomaly Detection', href: '/dashboard#ai-anomaly', icon: AnomalyIcon, badge: '1 Flag' },
   ];
 
+  const displayName = user?.name || user?.loginId || 'Vaibhav Kulkarni';
+  const displayEmail = user?.email || 'admin@ledgercraft.io';
+  const displayRole = user?.role ? user.role.toUpperCase() : 'CONTROLLER';
+  const initials = displayName
+    .split(' ')
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
   return (
     <>
       {/* Mobile Backdrop Overlay */}
@@ -68,31 +104,24 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
       {/* Sidebar Container */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex flex-col w-60 bg-white border-r border-[#E5E7EB] transition-transform duration-200 ease-in-out lg:translate-x-0 ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+          mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         }`}
         aria-label="Main Navigation"
       >
-        {/* Top Header: Logo & Close button on mobile */}
-        <div className="flex items-center justify-between px-4 h-14 border-b border-[#E5E7EB]">
+        {/* Top Header: Brand Logo matching Auth Page */}
+        <div className="flex items-center justify-between px-4 h-16 border-b border-[#E5E7EB]">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2.5 group focus-visible:outline-hidden"
+            onClick={onCloseMobile}
+            className="flex items-center gap-2 group focus:outline-hidden"
           >
-            <LogoIcon size={24} className="shrink-0 transition-transform group-hover:scale-105" />
-            <div className="flex flex-col">
-              <span className="text-[15px] font-semibold tracking-tight text-[#111827]">
-                LedgerCraft
-              </span>
-              <span className="text-[10px] uppercase font-medium tracking-wider text-[#98A2B3]">
-                Enterprise ERP
-              </span>
-            </div>
+            <Logo size="sm" />
           </Link>
 
           <button
             type="button"
             onClick={onCloseMobile}
-            className="p-1 text-[#667085] hover:text-[#111827] rounded-md lg:hidden"
+            className="p-1.5 text-[#667085] hover:text-[#111827] rounded-md hover:bg-[#F7F8FA] lg:hidden transition-colors"
             aria-label="Close navigation sidebar"
           >
             <XIcon size={18} />
@@ -100,15 +129,15 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
         </div>
 
         {/* Workspace Selector */}
-        <div className="relative px-3 py-2.5 border-b border-[#E5E7EB] bg-[#F7F8FA]/60">
+        <div className="relative px-3 py-2.5 border-b border-[#E5E7EB] bg-[#F7F8FA]/70">
           <button
             type="button"
             onClick={() => setWorkspaceMenuOpen(!workspaceMenuOpen)}
-            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-[#E5E7EB] bg-white text-left hover:border-gray-300 transition-colors"
+            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-enterprise border border-[#E5E7EB] bg-white text-left hover:border-gray-300 transition-colors"
             aria-expanded={workspaceMenuOpen}
           >
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-5 h-5 rounded bg-[#16A34A]/10 text-[#16A34A] font-semibold text-[11px] flex items-center justify-center shrink-0">
+              <div className="w-6 h-6 rounded-md bg-blue-50 text-[#2563EB] font-bold text-[10px] flex items-center justify-center shrink-0 border border-blue-100">
                 UF
               </div>
               <div className="truncate">
@@ -123,8 +152,8 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
 
           {/* Workspace Dropdown */}
           {workspaceMenuOpen && (
-            <div className="absolute left-3 right-3 top-13 z-50 bg-white rounded-lg shadow-lg border border-[#E5E7EB] py-1 text-xs">
-              <div className="px-3 py-1.5 font-medium text-[#98A2B3] text-[10px] uppercase tracking-wider">
+            <div className="absolute left-3 right-3 top-12 z-50 bg-white rounded-enterprise shadow-xl border border-[#E5E7EB] py-1 text-xs">
+              <div className="px-3 py-1.5 font-semibold text-[#98A2B3] text-[10px] uppercase tracking-wider border-b border-[#E5E7EB]">
                 Switch Workspace
               </div>
               {workspaces.map((ws) => (
@@ -139,7 +168,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
                 >
                   <span className="font-medium text-[#111827] truncate">{ws.name}</span>
                   {ws.name === currentWorkspace && (
-                    <CheckIcon size={12} className="text-[#16A34A] shrink-0 ml-2" />
+                    <CheckIcon size={13} className="text-[#2563EB] shrink-0 ml-2" />
                   )}
                 </button>
               ))}
@@ -148,7 +177,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
         </div>
 
         {/* Scrollable Navigation Area */}
-        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-5">
+        <div className="flex-1 overflow-y-auto px-2.5 py-3 space-y-5">
           {/* Main Navigation */}
           <div>
             <div className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#98A2B3]">
@@ -166,19 +195,18 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
                     onClick={() => {
                       if (window.innerWidth < 1024) onCloseMobile();
                     }}
-                    className={`relative flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-all ${
+                    className={`relative flex items-center gap-2.5 px-3 py-2.5 rounded-enterprise text-[13px] font-medium transition-all ${
                       isActive
-                        ? 'bg-[#F0F2F5] text-[#111827] font-semibold'
+                        ? 'bg-blue-50 text-[#2563EB] font-semibold'
                         : 'text-[#667085] hover:text-[#111827] hover:bg-[#F7F8FA]'
                     }`}
                   >
-                    {/* Left active green bar (spec: left accent bar in Primary green) */}
                     {isActive && (
-                      <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-[#16A34A] rounded-r-sm" />
+                      <span className="absolute left-0 top-2 bottom-2 w-[3px] bg-[#2563EB] rounded-r-sm" />
                     )}
                     <Icon
                       size={17}
-                      className={isActive ? 'text-[#16A34A]' : 'text-[#667085]'}
+                      className={isActive ? 'text-[#2563EB]' : 'text-[#667085]'}
                     />
                     <span className="truncate">{item.name}</span>
                   </Link>
@@ -187,13 +215,13 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
             </nav>
           </div>
 
-          {/* AI / Intelligence Section (spec: visually separated, small "AI" label above it) */}
+          {/* AI Intelligence Section */}
           <div className="pt-2 border-t border-[#E5E7EB]">
             <div className="flex items-center justify-between px-2 pb-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#2563EB]">
                 AI Intelligence
               </span>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-widest bg-blue-50 text-[#2563EB] border border-blue-100">
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-widest bg-blue-50 text-[#2563EB] border border-blue-200">
                 ACTIVE
               </span>
             </div>
@@ -207,7 +235,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
                     onClick={() => {
                       if (window.innerWidth < 1024) onCloseMobile();
                     }}
-                    className="group flex items-center justify-between px-3 py-2 rounded-md text-[13px] font-medium text-[#667085] hover:text-[#111827] hover:bg-[#F7F8FA] transition-colors"
+                    className="group flex items-center justify-between px-3 py-2 rounded-enterprise text-[13px] font-medium text-[#667085] hover:text-[#111827] hover:bg-[#F7F8FA] transition-colors"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Icon size={17} className="text-[#667085] group-hover:text-[#2563EB] transition-colors shrink-0" />
@@ -219,7 +247,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
                           item.badge.includes('Alert')
                             ? 'bg-amber-50 text-amber-700 border border-amber-200'
                             : item.badge.includes('Flag')
-                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                            ? 'bg-rose-50 text-[#DC2626] border border-rose-200'
                             : 'bg-blue-50 text-[#2563EB] border border-blue-200'
                         }`}
                       >
@@ -233,18 +261,24 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
           </div>
         </div>
 
-        {/* Bottom Section (spec: Settings · Help · User profile) */}
+        {/* Bottom Section */}
         <div className="border-t border-[#E5E7EB] p-2 space-y-1 bg-white">
           <Link
             href="/dashboard#settings"
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] font-medium text-[#667085] hover:text-[#111827] hover:bg-[#F7F8FA] transition-colors"
+            onClick={() => {
+              if (window.innerWidth < 1024) onCloseMobile();
+            }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-enterprise text-[13px] font-medium text-[#667085] hover:text-[#111827] hover:bg-[#F7F8FA] transition-colors"
           >
             <SettingsIcon size={16} className="text-[#667085]" />
             <span>Settings</span>
           </Link>
           <Link
             href="/dashboard#help"
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] font-medium text-[#667085] hover:text-[#111827] hover:bg-[#F7F8FA] transition-colors"
+            onClick={() => {
+              if (window.innerWidth < 1024) onCloseMobile();
+            }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-enterprise text-[13px] font-medium text-[#667085] hover:text-[#111827] hover:bg-[#F7F8FA] transition-colors"
           >
             <HelpIcon size={16} className="text-[#667085]" />
             <span>Help & Support</span>
@@ -255,19 +289,19 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
             <button
               type="button"
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-[#F7F8FA] transition-colors text-left"
+              className="w-full flex items-center justify-between p-2 rounded-enterprise hover:bg-[#F7F8FA] transition-colors text-left"
               aria-expanded={userMenuOpen}
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-[#111827] text-white flex items-center justify-center font-medium text-xs shrink-0 ring-1 ring-black/10">
-                  VK
+                <div className="w-8 h-8 rounded-full bg-[#0B1F3A] text-white flex items-center justify-center font-bold text-xs shrink-0 ring-2 ring-blue-100">
+                  {initials}
                 </div>
                 <div className="truncate">
                   <p className="text-[13px] font-semibold text-[#111827] leading-tight truncate">
-                    Vaibhav K.
+                    {displayName}
                   </p>
                   <p className="text-[11px] text-[#667085] leading-tight truncate">
-                    Financial Controller
+                    {displayRole}
                   </p>
                 </div>
               </div>
@@ -275,32 +309,29 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
             </button>
 
             {userMenuOpen && (
-              <div className="absolute bottom-13 left-2 right-2 bg-white rounded-lg shadow-xl border border-[#E5E7EB] py-1.5 text-xs z-50">
-                <div className="px-3 py-1 border-b border-[#E5E7EB]">
-                  <p className="font-semibold text-[#111827]">Vaibhav Kulkarni</p>
-                  <p className="text-[11px] text-[#667085]">vaibhav@urbanfurniture.in</p>
+              <div className="absolute bottom-14 left-2 right-2 bg-white rounded-enterprise shadow-xl border border-[#E5E7EB] py-1.5 text-xs z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-3 py-1.5 border-b border-[#E5E7EB]">
+                  <p className="font-semibold text-[#111827] truncate">{displayName}</p>
+                  <p className="text-[11px] text-[#667085] truncate">{displayEmail}</p>
                 </div>
                 <button
                   type="button"
-                  className="w-full px-3 py-1.5 text-left text-[#111827] hover:bg-[#F7F8FA] flex items-center justify-between"
+                  className="w-full px-3 py-2 text-left text-[#111827] hover:bg-[#F7F8FA] flex items-center justify-between transition-colors"
                   onClick={() => setUserMenuOpen(false)}
                 >
                   <span>Profile Preferences</span>
                 </button>
-                <button
-                  type="button"
-                  className="w-full px-3 py-1.5 text-left text-[#111827] hover:bg-[#F7F8FA] flex items-center justify-between"
-                  onClick={() => setUserMenuOpen(false)}
-                >
-                  <span>Audit Logs & Security</span>
-                </button>
                 <div className="border-t border-[#E5E7EB] my-1" />
                 <button
                   type="button"
-                  className="w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50"
-                  onClick={() => setUserMenuOpen(false)}
+                  className="w-full px-3 py-2 text-left text-[#DC2626] hover:bg-red-50 flex items-center gap-2 font-medium transition-colors"
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    handleLogout();
+                  }}
                 >
-                  Sign Out
+                  <LogOutIcon size={14} />
+                  <span>Sign Out</span>
                 </button>
               </div>
             )}

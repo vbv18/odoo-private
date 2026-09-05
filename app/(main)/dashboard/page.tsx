@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/dashboard/Header';
 import { KpiRow } from '@/components/dashboard/KpiCard';
 import { SalesPurchaseSnapshot } from '@/components/dashboard/SalesPurchaseSnapshot';
@@ -21,6 +22,7 @@ import {
 import { CheckIcon, XIcon } from '@/components/icons';
 
 export default function Dashboard() {
+  const router = useRouter();
   const { setMobileSidebarOpen } = useSidebar();
   const [selectedPeriod, setSelectedPeriod] = useState('This Month (September 2026)');
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
@@ -31,6 +33,13 @@ export default function Dashboard() {
   const [newTxInitialType, setNewTxInitialType] = useState<TransactionType>('SO');
   const [isLoading, setIsLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+    }
+  }, [router]);
 
   // Show temporary toast notification
   const showToast = (message: string) => {
@@ -172,8 +181,8 @@ export default function Dashboard() {
         onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
       />
 
-      {/* Main Dashboard Container: max 1440px, 24-32px padding */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-7">
+      {/* Main Dashboard Container: max 1440px, responsive padding */}
+      <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-7 space-y-5 sm:space-y-6">
         {/* 2. KPI Summary Row */}
         <KpiRow kpis={kpis} isLoading={isLoading} />
 
@@ -232,17 +241,17 @@ export default function Dashboard() {
         onActionComplete={(msg) => showToast(msg)}
       />
 
-      {/* Toast Notification Alert */}
+      {/* Toast Notification Alert - Auth Brand Navy styling */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 bg-[#111827] text-white text-[13px] font-medium rounded-lg shadow-xl border border-gray-700 animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="w-4 h-4 rounded-full bg-[#16A34A] flex items-center justify-center shrink-0">
-            <CheckIcon size={10} className="text-white" />
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 bg-[#0B1F3A] text-white text-[13px] font-medium rounded-enterprise shadow-2xl border border-[#2563EB]/40 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="w-5 h-5 rounded-full bg-[#16A34A] flex items-center justify-center shrink-0">
+            <CheckIcon size={11} className="text-white" />
           </div>
-          <span>{toastMessage}</span>
+          <span className="text-slate-100">{toastMessage}</span>
           <button
             type="button"
             onClick={() => setToastMessage(null)}
-            className="ml-2 text-gray-400 hover:text-white"
+            className="ml-2 text-slate-400 hover:text-white"
           >
             <XIcon size={14} />
           </button>

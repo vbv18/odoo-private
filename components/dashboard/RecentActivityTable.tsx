@@ -105,17 +105,17 @@ export function RecentActivityTable({
     return list;
   }, [transactions, searchTerm, selectedType, selectedStatus, sortField, sortOrder]);
 
-  // Pagination calculation
+  // Pagination slice
   const totalCount = filteredAndSortedTransactions.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
-  const paginatedTransactions = filteredAndSortedTransactions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedTransactions = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedTransactions.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedTransactions, currentPage]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder((cur) => (cur === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
       setSortOrder('desc');
@@ -133,19 +133,19 @@ export function RecentActivityTable({
         );
       case 'Confirmed':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-[#2563EB] border border-blue-200">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-[#2563EB] border border-blue-200">
             Confirmed
           </span>
         );
       case 'Paid':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-[#16A34A] border border-emerald-200">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-[#16A34A] border border-emerald-200">
             Paid
           </span>
         );
       case 'Overdue':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-[#DC2626] border border-rose-200">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-[#DC2626] border border-rose-200">
             Overdue
           </span>
         );
@@ -159,37 +159,37 @@ export function RecentActivityTable({
     switch (type) {
       case 'SO':
         return (
-          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-indigo-50 text-indigo-700 border border-indigo-200 tracking-wide">
+          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded-md bg-blue-50 text-[#2563EB] border border-blue-200 tracking-wide">
             SO
           </span>
         );
       case 'PO':
         return (
-          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-amber-50 text-amber-800 border border-amber-200 tracking-wide">
+          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded-md bg-slate-100 text-slate-800 border border-slate-200 tracking-wide">
             PO
           </span>
         );
       case 'Invoice':
         return (
-          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-blue-50 text-[#2563EB] border border-blue-200 tracking-wide">
+          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 tracking-wide">
             Invoice
           </span>
         );
       case 'Bill':
         return (
-          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-slate-100 text-slate-700 border border-slate-200 tracking-wide">
+          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded-md bg-amber-50 text-amber-800 border border-amber-200 tracking-wide">
             Bill
           </span>
         );
       case 'Payment':
         return (
-          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-emerald-50 text-[#16A34A] border border-emerald-200 tracking-wide">
+          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded-md bg-emerald-50 text-[#16A34A] border border-emerald-200 tracking-wide">
             Payment
           </span>
         );
       case 'Journal':
         return (
-          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-purple-50 text-[#7C3AED] border border-purple-200 tracking-wide">
+          <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded-md bg-purple-50 text-[#7C3AED] border border-purple-200 tracking-wide">
             Journal
           </span>
         );
@@ -198,12 +198,12 @@ export function RecentActivityTable({
 
   if (isLoading) {
     return (
-      <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 space-y-4 animate-pulse">
+      <div className="bg-white border border-[#E5E7EB] rounded-enterprise p-5 space-y-4 animate-pulse">
         <div className="flex justify-between items-center">
           <div className="h-6 w-44 bg-gray-200 rounded-sm" />
           <div className="flex gap-2">
-            <div className="h-8 w-36 bg-gray-100 rounded-lg" />
-            <div className="h-8 w-20 bg-gray-100 rounded-lg" />
+            <div className="h-8 w-36 bg-gray-100 rounded-enterprise" />
+            <div className="h-8 w-20 bg-gray-100 rounded-enterprise" />
           </div>
         </div>
         <div className="space-y-3 pt-2">
@@ -216,7 +216,7 @@ export function RecentActivityTable({
   }
 
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-2xs overflow-hidden">
+    <div className="bg-white border border-[#E5E7EB] rounded-enterprise shadow-2xs overflow-hidden">
       {/* Table Header Controls Toolbar */}
       <div className="p-4 sm:p-5 border-b border-[#E5E7EB] flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white">
         <div className="flex items-center gap-2.5">
@@ -230,8 +230,8 @@ export function RecentActivityTable({
 
         {/* Right Controls: Search, Filter, Column Visibility */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Small search input with icon */}
-          <div className="relative min-w-[200px] sm:min-w-[230px]">
+          {/* Search input with icon */}
+          <div className="relative flex-1 sm:flex-none min-w-[180px] sm:min-w-[240px]">
             <SearchIcon
               size={14}
               className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
@@ -244,7 +244,7 @@ export function RecentActivityTable({
                 setCurrentPage(1);
               }}
               placeholder="Search ref, partner, type..."
-              className="w-full pl-8 pr-7 py-1.5 text-[12px] bg-[#F7F8FA] border border-[#E5E7EB] rounded-lg text-[#111827] placeholder-[#98A2B3] focus:bg-white focus:outline-hidden transition-colors"
+              className="w-full pl-8 pr-7 py-1.5 text-[12px] bg-[#F7F8FA] border border-[#E5E7EB] rounded-enterprise text-[#111827] placeholder-[#98A2B3] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] focus:outline-hidden transition-colors"
             />
             {searchTerm && (
               <button
@@ -265,7 +265,7 @@ export function RecentActivityTable({
                 setFilterDropdownOpen(!filterDropdownOpen);
                 setColumnsDropdownOpen(false);
               }}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium rounded-lg border transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium rounded-enterprise border transition-colors ${
                 selectedType !== 'ALL' || selectedStatus !== 'ALL'
                   ? 'bg-blue-50 text-[#2563EB] border-blue-200'
                   : 'bg-white text-[#667085] border-[#E5E7EB] hover:bg-[#F7F8FA] hover:text-[#111827]'
@@ -281,7 +281,7 @@ export function RecentActivityTable({
 
             {/* Filter Popover */}
             {filterDropdownOpen && (
-              <div className="absolute right-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-[#E5E7EB] p-3 z-40 space-y-3">
+              <div className="absolute right-0 mt-1 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-enterprise shadow-xl border border-[#E5E7EB] p-3 z-40 space-y-3 animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center justify-between pb-2 border-b border-[#E5E7EB]">
                   <span className="text-[12px] font-semibold text-[#111827]">
                     Filter Records
@@ -292,7 +292,7 @@ export function RecentActivityTable({
                       setSelectedType('ALL');
                       setSelectedStatus('ALL');
                     }}
-                    className="text-[11px] text-[#2563EB] hover:underline"
+                    className="text-[11px] text-[#2563EB] hover:underline font-medium"
                   >
                     Reset all
                   </button>
@@ -308,7 +308,7 @@ export function RecentActivityTable({
                       setSelectedType(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="w-full text-[12px] p-1.5 bg-[#F7F8FA] border border-[#E5E7EB] rounded-md text-[#111827]"
+                    className="w-full text-[12px] p-1.5 bg-[#F7F8FA] border border-[#E5E7EB] rounded-enterprise text-[#111827] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] focus:outline-hidden"
                   >
                     <option value="ALL">All Types</option>
                     <option value="Invoice">Customer Invoice</option>
@@ -330,7 +330,7 @@ export function RecentActivityTable({
                       setSelectedStatus(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="w-full text-[12px] p-1.5 bg-[#F7F8FA] border border-[#E5E7EB] rounded-md text-[#111827]"
+                    className="w-full text-[12px] p-1.5 bg-[#F7F8FA] border border-[#E5E7EB] rounded-enterprise text-[#111827] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] focus:outline-hidden"
                   >
                     <option value="ALL">All Statuses</option>
                     <option value="Paid">Paid</option>
@@ -344,7 +344,7 @@ export function RecentActivityTable({
                   <button
                     type="button"
                     onClick={() => setFilterDropdownOpen(false)}
-                    className="px-2.5 py-1 bg-[#111827] text-white text-[11px] font-medium rounded-md"
+                    className="px-3 py-1 bg-[#2563EB] hover:bg-blue-700 text-white text-[11px] font-semibold rounded-enterprise transition-colors"
                   >
                     Apply Filters
                   </button>
@@ -361,7 +361,7 @@ export function RecentActivityTable({
                 setColumnsDropdownOpen(!columnsDropdownOpen);
                 setFilterDropdownOpen(false);
               }}
-              className="p-1.5 text-[#667085] bg-white border border-[#E5E7EB] rounded-lg hover:bg-[#F7F8FA] hover:text-[#111827] transition-colors"
+              className="p-2 text-[#667085] bg-white border border-[#E5E7EB] rounded-enterprise hover:bg-[#F7F8FA] hover:text-[#111827] transition-colors"
               aria-label="Toggle column visibility"
               title="Column visibility"
             >
@@ -369,7 +369,7 @@ export function RecentActivityTable({
             </button>
 
             {columnsDropdownOpen && (
-              <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-[#E5E7EB] p-2 z-40 space-y-1">
+              <div className="absolute right-0 mt-1 w-48 max-w-[calc(100vw-2rem)] bg-white rounded-enterprise shadow-xl border border-[#E5E7EB] p-2 z-40 space-y-1 animate-in fade-in zoom-in-95 duration-150">
                 <div className="text-[11px] font-semibold text-[#98A2B3] px-2 py-1 uppercase tracking-wider">
                   Columns
                 </div>
@@ -378,10 +378,10 @@ export function RecentActivityTable({
                     key={col}
                     type="button"
                     onClick={() => toggleColumn(col as keyof typeof visibleColumns)}
-                    className="w-full flex items-center justify-between px-2 py-1 text-[12px] text-[#111827] hover:bg-[#F7F8FA] rounded-md"
+                    className="w-full flex items-center justify-between px-2 py-1.5 text-[12px] text-[#111827] hover:bg-[#F7F8FA] rounded-md transition-colors"
                   >
                     <span className="capitalize">{col}</span>
-                    {isVisible && <CheckIcon size={12} className="text-[#16A34A]" />}
+                    {isVisible && <CheckIcon size={13} className="text-[#2563EB]" />}
                   </button>
                 ))}
               </div>
@@ -479,7 +479,7 @@ export function RecentActivityTable({
             </tr>
           </thead>
 
-          {/* Table Body (spec: 1px border between rows, subtle #F9FAFB hover shift, row click opens record) */}
+          {/* Table Body */}
           <tbody className="divide-y divide-[#E5E7EB] text-[13px]">
             {paginatedTransactions.length > 0 ? (
               paginatedTransactions.map((tx) => (
@@ -508,7 +508,7 @@ export function RecentActivityTable({
                   )}
 
                   {visibleColumns.referenceNo && (
-                    <td className="py-3 px-4 font-medium text-[#111827] whitespace-nowrap font-mono text-[12px]">
+                    <td className="py-3 px-4 font-semibold text-[#111827] whitespace-nowrap font-mono text-[12px]">
                       {tx.referenceNo}
                     </td>
                   )}
@@ -525,7 +525,7 @@ export function RecentActivityTable({
                   )}
 
                   {visibleColumns.amount && (
-                    <td className="py-3 px-4 text-right font-medium text-[#111827] tabular-nums whitespace-nowrap">
+                    <td className="py-3 px-4 text-right font-semibold text-[#111827] tabular-nums whitespace-nowrap">
                       {formatCurrency(tx.amount)}
                     </td>
                   )}
@@ -543,7 +543,6 @@ export function RecentActivityTable({
                   colSpan={6}
                   className="py-12 px-4 text-center"
                 >
-                  {/* Empty state (spec: centered icon + "No transactions yet" + primary action button) */}
                   <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                     <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-[#98A2B3] mb-3">
                       <FileTextIcon size={20} />
@@ -567,7 +566,7 @@ export function RecentActivityTable({
                           onOpenNewTransaction();
                         }
                       }}
-                      className="px-3 py-1.5 text-[12px] font-semibold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-lg transition-colors"
+                      className="px-3.5 py-2 text-[12px] font-semibold text-white bg-[#2563EB] hover:bg-blue-700 rounded-enterprise transition-colors shadow-xs"
                     >
                       {searchTerm || selectedType !== 'ALL' || selectedStatus !== 'ALL'
                         ? 'Clear all filters'
@@ -581,7 +580,7 @@ export function RecentActivityTable({
         </table>
       </div>
 
-      {/* Pagination Footer (spec: "Showing 1–10 of 248" + page controls, small and unobtrusive) */}
+      {/* Pagination Footer */}
       <div className="px-4 py-3 border-t border-[#E5E7EB] bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-[12px] text-[#667085]">
         <div>
           Showing{' '}
@@ -600,7 +599,7 @@ export function RecentActivityTable({
             type="button"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="p-1 rounded border border-[#E5E7EB] text-[#667085] hover:bg-[#F7F8FA] hover:text-[#111827] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 rounded-enterprise border border-[#E5E7EB] text-[#667085] hover:bg-[#F7F8FA] hover:text-[#111827] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label="Previous page"
           >
             <ChevronLeftIcon size={14} />
@@ -614,7 +613,7 @@ export function RecentActivityTable({
             type="button"
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage >= totalPages}
-            className="p-1 rounded border border-[#E5E7EB] text-[#667085] hover:bg-[#F7F8FA] hover:text-[#111827] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 rounded-enterprise border border-[#E5E7EB] text-[#667085] hover:bg-[#F7F8FA] hover:text-[#111827] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             aria-label="Next page"
           >
             <ChevronRightIcon size={14} />
