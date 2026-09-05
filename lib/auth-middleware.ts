@@ -93,6 +93,18 @@ export function requireRole(
 }
 
 /**
+ * Normalize any role string to a valid PERMISSIONS key.
+ * Handles lowercase variants from old localStorage tokens.
+ */
+function normalizeRole(raw: string | undefined): 'Admin' | 'Accountant' | 'Contact' {
+  const r = (raw || '').toLowerCase().trim();
+  if (r === 'admin') return 'Admin';
+  if (r === 'accountant') return 'Accountant';
+  if (r === 'contact') return 'Contact';
+  return 'Contact'; // minimum privilege for unknown roles
+}
+
+/**
  * Check if user has specific permission
  */
 export function hasPermission(
@@ -100,7 +112,9 @@ export function hasPermission(
   permission: keyof typeof PERMISSIONS.Admin
 ): boolean {
   if (!user) return false;
-  const rolePermissions = PERMISSIONS[user.role];
+  const role = normalizeRole(user.role);
+  const rolePermissions = PERMISSIONS[role];
+  if (!rolePermissions) return false;
   return (rolePermissions as any)[permission] === true;
 }
 
