@@ -32,15 +32,17 @@ const Sidebar: React.FC = () => {
           const Icon = item.icon;
           const isActive = router.pathname === item.href;
           return (
-            <Link key={item.href} href={item.href}>
-              <a className={`flex items-center space-x-3 px-4 py-3 rounded-enterprise transition-colors duration-150 ${
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center space-x-3 px-4 py-3 rounded-enterprise transition-colors duration-150 ${
                 isActive
                   ? 'bg-ai-blue text-white'
                   : 'text-secondary-text hover:bg-background'
-              }`}>
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
-              </a>
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="font-medium">{item.label}</span>
             </Link>
           );
         })}

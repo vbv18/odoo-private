@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import AuthLayout from '../components/AuthLayout';
 import { Logo } from '../components/ui/Logo';
 import { Button } from '../components/ui/Button';
@@ -167,19 +168,13 @@ const SignupPage: React.FC = () => {
 
         <div className="text-center text-sm space-y-2">
           <div>
-            <a 
-              href="/forgot-password" 
-              className="text-ai-blue hover:text-blue-700 transition-colors duration-150"
-            >
+            <Link href="/forgot-password" className="text-ai-blue hover:text-blue-700 transition-colors duration-150">
               Forgot Password
-            </a>
+            </Link>
             <span className="text-secondary-text mx-2">|</span>
-            <a 
-              href="/login" 
-              className="text-ai-blue hover:text-blue-700 transition-colors duration-150"
-            >
+            <Link href="/login" className="text-ai-blue hover:text-blue-700 transition-colors duration-150">
               Sign In
-            </a>
+            </Link>
           </div>
         </div>
       </div>

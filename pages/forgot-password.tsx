@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import AuthLayout from '../components/AuthLayout';
 import { Logo } from '../components/ui/Logo';
 import { Button } from '../components/ui/Button';
@@ -51,9 +52,9 @@ const ForgotPasswordPage: React.FC = () => {
         )}
 
         <div className="text-center text-sm">
-          <a href="/login" className="text-ai-blue hover:text-blue-700">
+          <Link href="/login" className="text-ai-blue hover:text-blue-700">
             Back to sign in
-          </a>
+          </Link>
         </div>
       </div>
     </AuthLayout>
