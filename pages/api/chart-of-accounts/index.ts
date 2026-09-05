@@ -4,6 +4,7 @@ import { isDbAvailable } from '@/lib/db-safe';
 import { getChartOfAccounts, saveCOA } from '@/lib/mock-data';
 import { pool } from '@/lib/db';
 import { randomUUID } from 'crypto';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method === 'GET') return handleGet(req, res);
@@ -49,9 +50,10 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
   try {
     const existing = await pool.query('SELECT id FROM chart_of_accounts WHERE account_code = $1', [account_code]);
     if (existing.rows.length > 0) return res.status(400).json({ message: 'Account code already exists' });
+    const createdBy = await resolveCreatedBy(req.user?.id);
     const result = await pool.query(
       `INSERT INTO chart_of_accounts (account_code, account_name, account_type, parent_account_id, opening_balance, current_balance, created_by) VALUES ($1,$2,$3,$4,$5,$5,$6) RETURNING *`,
-      [account_code, account_name, account_type, parent_account_id || null, opening_balance || 0, req.user?.id || null]
+      [account_code, account_name, account_type, parent_account_id || null, opening_balance || 0, createdBy]
     );
     return res.status(201).json({ message: 'Account created successfully', account: result.rows[0] });
   } catch (error: any) {

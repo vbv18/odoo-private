@@ -44,6 +44,14 @@ export function findUserByLoginOrEmail(identifier: string): StoredUser | undefin
   );
 }
 
+export function getAllStoredUsers(): StoredUser[] {
+  return readUsers();
+}
+
+export function findUserById(id: string): StoredUser | undefined {
+  return readUsers().find((user) => user.id === id && user.is_active);
+}
+
 export function createUser(input: {
   loginId?: string;
   email: string;

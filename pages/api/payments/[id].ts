@@ -13,7 +13,7 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
       `SELECT 
         p.*,
         c.name as partner_name, c.email as partner_email, c.mobile as partner_mobile, c.address as partner_address,
-        u.name as created_by_name
+        u.full_name as created_by_name
        FROM payments p
        LEFT JOIN contacts c ON p.partner_id = c.id
        LEFT JOIN users u ON p.created_by = u.id

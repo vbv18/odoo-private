@@ -4,6 +4,7 @@ import { isDbAvailable } from '@/lib/db-safe';
 import { getSalesOrders, saveSalesOrders } from '@/lib/mock-data';
 import { pool } from '@/lib/db';
 import { randomUUID } from 'crypto';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method === 'GET') return handleGet(req, res);
@@ -103,7 +104,7 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
         }
       }
 
-      const safeCreatedBy: string | null = req.user?.id && isValidUuid(req.user.id) ? req.user.id : null;
+      const safeCreatedBy = await resolveCreatedBy(req.user?.id, client);
 
       const soRes = await client.query(
         `INSERT INTO sales_orders (so_number, customer_id, so_date, expected_delivery_date, status, subtotal, tax_amount, total_amount, notes, created_by)

@@ -18,7 +18,7 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse, id: st
       `SELECT 
         b.*,
         aa.account_name as analytic_account_name, aa.account_type as analytic_account_type,
-        u.name as responsible_person_name
+        u.full_name as responsible_person_name
        FROM budgets b
        LEFT JOIN analytic_accounts aa ON b.analytic_account_id = aa.id
        LEFT JOIN users u ON b.responsible_person = u.id
@@ -35,25 +35,39 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse, id: st
 async function handleUpdate(req: AuthenticatedRequest, res: NextApiResponse, id: string) {
   try {
     const { budget_name, analytic_account_id, period_start, period_end, planned_amount, status, responsible_person } = req.body;
+    const isValidUuid = (val: unknown) =>
+      typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+    const safeAnalyticId =
+      analytic_account_id === undefined
+        ? undefined
+        : isValidUuid(analytic_account_id)
+          ? analytic_account_id
+          : null;
+    const safeResponsible =
+      responsible_person === undefined
+        ? undefined
+        : isValidUuid(responsible_person)
+          ? responsible_person
+          : null;
     const result = await pool.query(
       `UPDATE budgets 
        SET budget_name = COALESCE($1, budget_name),
-           analytic_account_id = $2,
+           analytic_account_id = COALESCE($2, analytic_account_id),
            period_start = COALESCE($3, period_start),
            period_end = COALESCE($4, period_end),
            planned_amount = COALESCE($5, planned_amount),
            status = COALESCE($6, status),
-           responsible_person = $7,
+           responsible_person = COALESCE($7, responsible_person),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $8 RETURNING *`,
       [
         budget_name,
-        analytic_account_id || null,
+        safeAnalyticId ?? null,
         period_start,
         period_end,
         planned_amount ? parseFloat(planned_amount) : null,
         status,
-        responsible_person || null,
+        safeResponsible ?? null,
         id
       ]
     );

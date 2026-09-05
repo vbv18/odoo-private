@@ -2,6 +2,8 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { findUserByLoginOrEmail } from '../../../lib/users';
+import { ensureDbUser, syncAllFileUsersToDb } from '../../../lib/db-users';
+import { normalizeRole } from '../../../lib/roles';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -27,12 +29,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ message: 'Invalid Login Id or Password' });
     }
 
+    // Sync all users to PostgreSQL so accountant created_by FKs work like admin
+    await syncAllFileUsersToDb();
+    await ensureDbUser(user);
+
+    const normalizedRole = normalizeRole(user.role);
+
     const token = jwt.sign(
       {
         userId: user.id,
         loginId: user.login_id,
         email: user.email,
-        role: user.role,
+        role: normalizedRole,
       },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
@@ -46,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         loginId: user.login_id,
         email: user.email,
         fullName: user.full_name,
-        role: user.role,
+        role: normalizedRole,
       },
     });
   } catch (error) {

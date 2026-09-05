@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
+import { normalizeRole, UserRole } from '@/lib/roles';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -7,7 +8,7 @@ export interface AuthenticatedUser {
   id: string;
   loginId: string;
   email: string;
-  role: 'Admin' | 'Accountant' | 'Contact';
+  role: UserRole;
   name: string;
   contactId?: string; // For Contact users linked to a contact
 }
@@ -85,11 +86,11 @@ export function authenticateToken(
  * Middleware to check if user has specific role
  */
 export function requireRole(
-  roles: Array<'Admin' | 'Accountant' | 'Contact'>,
+  roles: UserRole[],
   handler: (req: AuthenticatedRequest, res: NextApiResponse) => Promise<void>
 ) {
   return authenticateToken(async (req: AuthenticatedRequest, res: NextApiResponse) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user || !roles.includes(normalizeRole(req.user.role))) {
       return res.status(403).json({ 
         message: 'Insufficient permissions. Required role: ' + roles.join(' or ') 
       });
@@ -99,17 +100,7 @@ export function requireRole(
   });
 }
 
-/**
- * Normalize any role string to a valid PERMISSIONS key.
- * Handles lowercase variants from old localStorage tokens.
- */
-function normalizeRole(raw: string | undefined): 'Admin' | 'Accountant' | 'Contact' {
-  const r = (raw || '').toLowerCase().trim();
-  if (r === 'admin') return 'Admin';
-  if (r === 'accountant') return 'Accountant';
-  if (r === 'contact') return 'Contact';
-  return 'Admin'; // default to Admin for unspecified or general roles
-}
+export { normalizeRole };
 
 /**
  * Check if user has specific permission
@@ -149,13 +140,12 @@ export function requirePermission(
 export function filterByUserAccess(user: AuthenticatedUser | undefined, contactId: string): boolean {
   if (!user) return false;
   
-  // Admin and Accountant can access all data
-  if (user.role === 'Admin' || user.role === 'Accountant') {
+  const role = normalizeRole(user.role);
+  if (role === 'Admin' || role === 'Accountant') {
     return true;
   }
 
-  // Contact can only access their own data
-  if (user.role === 'Contact') {
+  if (role === 'Contact') {
     return user.contactId === contactId;
   }
 

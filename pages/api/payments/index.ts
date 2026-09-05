@@ -4,6 +4,7 @@ import { isDbAvailable } from '@/lib/db-safe';
 import { getPayments, savePayments } from '@/lib/mock-data';
 import { pool } from '@/lib/db';
 import { randomUUID } from 'crypto';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method === 'GET') return handleGet(req, res);
@@ -66,10 +67,11 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
     const prefix = payment_type === 'Receipt' ? 'REC' : 'PAY';
     const seq = (await pool.query('SELECT COUNT(*) FROM payments')).rows[0].count;
     const payment_number = `${prefix}-${new Date().getFullYear()}-${String(parseInt(seq) + 1).padStart(4, '0')}`;
+    const createdBy = await resolveCreatedBy(req.user?.id);
     const payRes = await pool.query(
       `INSERT INTO payments (payment_number, payment_type, payment_method, partner_id, payment_date, amount, reference_type, reference_number, notes, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,'Manual',$7,$8,$9) RETURNING *`,
-      [payment_number, payment_type, payment_method || 'Bank', partner_id || null, payment_date || new Date().toISOString().split('T')[0], parsedAmount, reference_number || null, notes || null, req.user?.id || null]
+      [payment_number, payment_type, payment_method || 'Bank', partner_id || null, payment_date || new Date().toISOString().split('T')[0], parsedAmount, reference_number || null, notes || null, createdBy]
     );
     return res.status(201).json({ message: 'Payment recorded successfully', payment: payRes.rows[0] });
   } catch (error: any) {

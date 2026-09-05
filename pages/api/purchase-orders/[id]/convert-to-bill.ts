@@ -1,6 +1,7 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -40,6 +41,8 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
     const billDate = new Date().toISOString().split('T')[0];
     const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
+    const createdBy = await resolveCreatedBy(req.user?.id, client);
+
     // 3. Create Vendor Bill
     const billRes = await client.query(
       `INSERT INTO vendor_bills 
@@ -56,7 +59,7 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
         po.tax_amount,
         po.total_amount,
         `Generated from Purchase Order ${po.po_number}`,
-        req.user?.id || null,
+        createdBy,
       ]
     );
     const bill = billRes.rows[0];

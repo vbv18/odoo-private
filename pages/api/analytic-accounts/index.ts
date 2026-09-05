@@ -1,6 +1,7 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method === 'GET') return handleGet(req, res);
@@ -31,11 +32,12 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
       return res.status(400).json({ message: 'Invalid account type (Income or Expenses)' });
     }
 
+    const createdBy = await resolveCreatedBy(req.user?.id);
     const result = await pool.query(
       `INSERT INTO analytic_accounts (account_name, account_type, description, created_by)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [account_name, account_type, description || null, req.user?.id || null]
+      [account_name, account_type, description || null, createdBy]
     );
 
     return res.status(201).json({ message: 'Analytic account created successfully', account: result.rows[0] });

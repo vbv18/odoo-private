@@ -1,6 +1,7 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -37,6 +38,8 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
     const invoiceDate = new Date().toISOString().split('T')[0];
     const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
+    const createdBy = await resolveCreatedBy(req.user?.id, client);
+
     const invRes = await client.query(
       `INSERT INTO customer_invoices 
         (invoice_number, customer_id, sales_order_id, invoice_date, due_date, status, subtotal, tax_amount, total_amount, paid_amount, notes, created_by)
@@ -52,7 +55,7 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
         so.tax_amount,
         so.total_amount,
         `Generated from Sales Order ${so.so_number}`,
-        req.user?.id || null,
+        createdBy,
       ]
     );
     const invoice = invRes.rows[0];

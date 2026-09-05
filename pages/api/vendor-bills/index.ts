@@ -4,6 +4,7 @@ import { isDbAvailable } from '@/lib/db-safe';
 import { getVendorBills, saveVendorBills } from '@/lib/mock-data';
 import { pool } from '@/lib/db';
 import { randomUUID } from 'crypto';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method === 'GET') return handleGet(req, res);
@@ -72,10 +73,11 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
       await client.query('BEGIN');
       const seq = (await client.query('SELECT COUNT(*) FROM vendor_bills')).rows[0].count;
       const bill_number = `BILL-${new Date().getFullYear()}-${String(parseInt(seq) + 1).padStart(4, '0')}`;
+      const createdBy = await resolveCreatedBy(req.user?.id, client);
       const billRes = await client.query(
         `INSERT INTO vendor_bills (bill_number, vendor_id, bill_date, due_date, status, subtotal, tax_amount, total_amount, paid_amount, notes, created_by)
          VALUES ($1,$2,$3,$4,'Draft',$5,$6,$7,0,$8,$9) RETURNING *`,
-        [bill_number, vendor_id, bill_date, due_date, subtotal, tax_amount, total_amount, notes || null, req.user?.id || null]
+        [bill_number, vendor_id, bill_date, due_date, subtotal, tax_amount, total_amount, notes || null, createdBy]
       );
       for (const item of items) {
         await client.query(

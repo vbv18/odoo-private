@@ -4,6 +4,7 @@ import { isDbAvailable } from '@/lib/db-safe';
 import { getJournals, saveJournals } from '@/lib/mock-data';
 import { pool } from '@/lib/db';
 import { randomUUID } from 'crypto';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method === 'GET') return handleGet(req, res);
@@ -61,6 +62,7 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
   }
 
   try {
+    const createdBy = await resolveCreatedBy(req.user?.id);
     const result = await pool.query(
       `INSERT INTO journals (journal_name, journal_type, default_debit_account_id, default_credit_account_id, description, created_by)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -70,7 +72,7 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
         default_debit_account_id || null,
         default_credit_account_id || null,
         description || null,
-        req.user?.id || null
+        createdBy
       ]
     );
     return res.status(201).json({ message: 'Journal created successfully', journal: result.rows[0] });

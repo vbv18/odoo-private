@@ -4,6 +4,7 @@ import { AuthenticatedRequest, authenticateToken } from '@/lib/auth-middleware';
 import { postCustomerInvoice } from '@/lib/accounting-helpers';
 import { getStoredInvoiceById, updateStoredInvoice } from '@/lib/invoices-store';
 import { saveStoredPayment } from '@/lib/payments-store';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -41,8 +42,9 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
       }
 
       // Ensure the invoice is posted to the general ledger first
+      const createdBy = await resolveCreatedBy(req.user?.id, client);
       if (!invoice.journal_entry_id) {
-        await postCustomerInvoice(client, id, req.user?.id || null);
+        await postCustomerInvoice(client, id, createdBy);
       }
 
       const newPaidAmount = currentPaid + paymentAmount;

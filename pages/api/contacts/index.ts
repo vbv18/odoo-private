@@ -4,6 +4,7 @@ import { isDbAvailable } from '@/lib/db-safe';
 import { getContacts, saveContacts } from '@/lib/mock-data';
 import { pool } from '@/lib/db';
 import { randomUUID } from 'crypto';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method === 'GET') return handleGetContacts(req, res);
@@ -62,9 +63,10 @@ async function handleCreateContact(req: AuthenticatedRequest, res: NextApiRespon
       const existing = await pool.query('SELECT id FROM contacts WHERE email = $1 AND is_archived = false', [email]);
       if (existing.rows.length > 0) return res.status(400).json({ message: 'Email already exists' });
     }
+    const createdBy = await resolveCreatedBy(req.user?.id);
     const result = await pool.query(
       `INSERT INTO contacts (name, contact_type, email, mobile, city, state, pincode, address, profile_image_url, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [name, contact_type, email || null, mobile || null, city || null, state || null, pincode || null, address || null, profile_image_url || null, req.user?.id || null]
+      [name, contact_type, email || null, mobile || null, city || null, state || null, pincode || null, address || null, profile_image_url || null, createdBy]
     );
     return res.status(201).json({ message: 'Contact created successfully', contact: result.rows[0] });
   } catch (error: any) {

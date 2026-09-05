@@ -4,6 +4,10 @@ import { isDbAvailable } from '@/lib/db-safe';
 import { getBudgets, saveBudgets } from '@/lib/mock-data';
 import { pool } from '@/lib/db';
 import { randomUUID } from 'crypto';
+import { resolveCreatedBy } from '@/lib/db-users';
+
+const isValidUuid = (val: unknown) =>
+  typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method === 'GET') return handleGet(req, res);
@@ -18,7 +22,7 @@ async function handleGet(_req: AuthenticatedRequest, res: NextApiResponse) {
     const result = await pool.query(`
       SELECT b.*,
              aa.account_name as analytic_account_name,
-             u.name as responsible_person_name
+             u.full_name as responsible_person_name
       FROM budgets b
       LEFT JOIN analytic_accounts aa ON b.analytic_account_id = aa.id
       LEFT JOIN users u ON b.responsible_person = u.id
@@ -74,18 +78,21 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
   }
 
   try {
+    const createdBy = await resolveCreatedBy(req.user?.id);
+    const safeAnalyticId = isValidUuid(analytic_account_id) ? analytic_account_id : null;
+    const safeResponsible = isValidUuid(responsible_person) ? responsible_person : null;
     const result = await pool.query(
       `INSERT INTO budgets (budget_name, analytic_account_id, period_start, period_end, planned_amount, status, responsible_person, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [
         finalBudgetTitle,
-        analytic_account_id || null,
+        safeAnalyticId,
         finalStart,
         finalEnd,
         finalAmount,
         status || 'Active',
-        responsible_person || null,
-        req.user?.id || null,
+        safeResponsible,
+        createdBy,
       ]
     );
     return res.status(201).json({ message: 'Budget created successfully', budget: result.rows[0] });

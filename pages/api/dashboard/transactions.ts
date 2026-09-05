@@ -4,6 +4,7 @@ import { isDbAvailable } from '@/lib/db-safe';
 import { getSalesOrders, getPurchaseOrders, getCustomerInvoices, getVendorBills, getPayments, saveSalesOrders, savePurchaseOrders, saveCustomerInvoices, saveVendorBills, savePayments } from '@/lib/mock-data';
 import { pool } from '@/lib/db';
 import { randomUUID } from 'crypto';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method === 'GET') return handleGetTransactions(req, res);
@@ -108,13 +109,14 @@ async function handleCreateTransaction(req: AuthenticatedRequest, res: NextApiRe
 
   try {
     const rand = Math.floor(100 + Math.random() * 900);
+    const createdBy = await resolveCreatedBy(req.user?.id);
     let result;
     if (type === 'SO') {
-      result = await pool.query(`INSERT INTO sales_orders (so_number, customer_id, total_amount, status, expected_delivery_date, notes, created_by) VALUES ($1,NULL,$2,'Draft',$3,$4,$5) RETURNING id::text, so_number as reference_no, 'SO' as type, total_amount as amount, status, created_at as date`, [`SO-2026-${rand}`, parsedAmount, dueDate || null, notes || null, req.user?.id || null]);
+      result = await pool.query(`INSERT INTO sales_orders (so_number, customer_id, total_amount, status, expected_delivery_date, notes, created_by) VALUES ($1,NULL,$2,'Draft',$3,$4,$5) RETURNING id::text, so_number as reference_no, 'SO' as type, total_amount as amount, status, created_at as date`, [`SO-2026-${rand}`, parsedAmount, dueDate || null, notes || null, createdBy]);
     } else if (type === 'Invoice') {
-      result = await pool.query(`INSERT INTO customer_invoices (invoice_number, customer_id, invoice_date, due_date, total_amount, status, notes, created_by) VALUES ($1,NULL,NOW(),$2,$3,'Sent',$4,$5) RETURNING id::text, invoice_number as reference_no, 'Invoice' as type, total_amount as amount, status, created_at as date`, [`INV-2026-${rand}`, dueDate || null, parsedAmount, notes || null, req.user?.id || null]);
+      result = await pool.query(`INSERT INTO customer_invoices (invoice_number, customer_id, invoice_date, due_date, total_amount, status, notes, created_by) VALUES ($1,NULL,NOW(),$2,$3,'Sent',$4,$5) RETURNING id::text, invoice_number as reference_no, 'Invoice' as type, total_amount as amount, status, created_at as date`, [`INV-2026-${rand}`, dueDate || null, parsedAmount, notes || null, createdBy]);
     } else if (type === 'Bill') {
-      result = await pool.query(`INSERT INTO vendor_bills (bill_number, vendor_id, bill_date, due_date, total_amount, status, notes, created_by) VALUES ($1,NULL,NOW(),$2,$3,'Received',$4,$5) RETURNING id::text, bill_number as reference_no, 'Bill' as type, total_amount as amount, status, created_at as date`, [`BILL-2026-${rand}`, dueDate || null, parsedAmount, notes || null, req.user?.id || null]);
+      result = await pool.query(`INSERT INTO vendor_bills (bill_number, vendor_id, bill_date, due_date, total_amount, status, notes, created_by) VALUES ($1,NULL,NOW(),$2,$3,'Received',$4,$5) RETURNING id::text, bill_number as reference_no, 'Bill' as type, total_amount as amount, status, created_at as date`, [`BILL-2026-${rand}`, dueDate || null, parsedAmount, notes || null, createdBy]);
     } else {
       return res.status(400).json({ message: 'Invalid transaction type' });
     }

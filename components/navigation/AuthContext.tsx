@@ -2,23 +2,13 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { UserRole } from '@/lib/navigation-config';
+import { UserRole, normalizeRole } from '@/lib/roles';
 
 interface AuthUser {
   loginId?: string;
   name?: string;
   email?: string;
   role: UserRole;
-}
-
-// Normalize any case variant of role to the exact UserRole the nav config expects
-function normalizeRole(raw: string | undefined): UserRole {
-  const r = (raw || '').toLowerCase().trim();
-  if (r === 'admin') return 'Admin';
-  if (r === 'accountant') return 'Accountant';
-  if (r === 'contact') return 'Contact';
-  // Fallback: signup creates 'user' role — treat as Contact (least privilege)
-  return 'Contact';
 }
 
 interface AuthContextType {

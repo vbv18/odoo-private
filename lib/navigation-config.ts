@@ -1,5 +1,6 @@
 // Role-based navigation configuration
-export type UserRole = 'Admin' | 'Accountant' | 'Contact';
+export type { UserRole } from '@/lib/roles';
+import type { UserRole } from '@/lib/roles';
 
 export interface NavItem {
   name: string;

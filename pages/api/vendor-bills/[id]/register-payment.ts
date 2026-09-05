@@ -2,6 +2,7 @@ import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, authenticateToken } from '@/lib/auth-middleware';
 import { postVendorBill } from '@/lib/accounting-helpers';
+import { resolveCreatedBy } from '@/lib/db-users';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -39,8 +40,9 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
     }
 
     // Ensure the vendor bill is posted to general ledger first so COGS/Expenses and AP are properly recognized
+    const createdBy = await resolveCreatedBy(req.user?.id, client);
     if (!bill.journal_entry_id) {
-      await postVendorBill(client, id, req.user?.id || null);
+      await postVendorBill(client, id, createdBy);
     }
 
     const newPaidAmount = currentPaid + paymentAmount;
@@ -74,7 +76,7 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
         bill.id,
         bill.bill_number,
         notes || `Payment for Bill ${bill.bill_number}`,
-        req.user?.id || null,
+        createdBy,
       ]
     );
 
@@ -109,7 +111,7 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           bill.bill_number,
           `Payment for ${bill.bill_number}`,
           paymentAmount,
-          req.user?.id || null,
+          createdBy,
         ]
       );
       const jeId = jeRes.rows[0].id;
