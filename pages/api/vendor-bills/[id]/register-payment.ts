@@ -79,10 +79,12 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
     );
 
     // 5. Auto-create double-entry Journal Entry
+    // Find Accounts Payable (2110) and Bank/Cash (1120 or 1110) accounts
     const apRes = await client.query("SELECT id FROM chart_of_accounts WHERE account_code = '2110' LIMIT 1");
     const bankCode = payMethod === 'Cash' ? '1110' : '1120';
     const bankRes = await client.query("SELECT id FROM chart_of_accounts WHERE account_code = $1 LIMIT 1", [bankCode]);
 
+    // Find or create default Purchase Journal
     const journalRes = await client.query("SELECT id FROM journals WHERE journal_type = 'Bank' OR journal_type = 'Cash' LIMIT 1");
     const journalId = journalRes.rows[0]?.id || null;
 

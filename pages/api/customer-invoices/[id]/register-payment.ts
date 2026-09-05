@@ -61,8 +61,8 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
 
       const paymentRes = await client.query(
         `INSERT INTO payments 
-          (payment_number, payment_type, payment_method, partner_id, payment_date, amount, reference_type, reference_id, reference_number, notes, created_by)
-         VALUES ($1, 'Receipt', $2, $3, $4, $5, 'Invoice', $6, $7, $8, $9)
+          (payment_number, payment_type, payment_method, partner_id, payment_date, amount, reference_type, reference_id, reference_number, notes)
+         VALUES ($1, 'Receipt', $2, $3, $4, $5, 'Invoice', $6, $7, $8)
          RETURNING *`,
         [
           payment_number,
@@ -73,7 +73,6 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           id,
           invoice.invoice_number,
           notes || `Payment for invoice ${invoice.invoice_number}`,
-          req.user?.id || null,
         ]
       );
 

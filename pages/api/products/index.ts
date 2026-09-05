@@ -131,9 +131,9 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
 
   try {
     const result = await pool.query(
-      `INSERT INTO products (product_name, sku, category, unit_of_measure, sales_price, cost_price, tax_rate, product_type, description, stock_quantity, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [name, sku, category, unit_of_measure, sales_price, cost_price, tax_rate, product_type, description, stock_quantity, req.user?.id || null]
+      `INSERT INTO products (product_name, sku, category, unit_of_measure, sales_price, cost_price, product_type, description, stock_quantity)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [name, sku, category, unit_of_measure, sales_price, cost_price, product_type, description, stock_quantity]
     );
     return res.status(201).json({ message: 'Product created successfully', product: normalizeProduct(result.rows[0]) });
   } catch (error: any) {

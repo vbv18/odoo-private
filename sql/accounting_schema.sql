@@ -251,7 +251,7 @@ CREATE TABLE IF NOT EXISTS customer_invoices (
   sales_order_id UUID REFERENCES sales_orders(id) ON DELETE SET NULL,
   invoice_date DATE NOT NULL,
   due_date DATE NOT NULL,
-  status VARCHAR(20) DEFAULT 'Draft' CHECK (status IN ('Draft', 'Posted', 'Paid', 'Cancelled')),
+  status VARCHAR(20) DEFAULT 'Draft' CHECK (status IN ('Draft', 'Sent', 'Posted', 'Paid', 'Overdue', 'Cancelled')),
   subtotal DECIMAL(15, 2) DEFAULT 0,
   tax_amount DECIMAL(15, 2) DEFAULT 0,
   total_amount DECIMAL(15, 2) DEFAULT 0,

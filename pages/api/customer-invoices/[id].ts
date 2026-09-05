@@ -1,7 +1,6 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
-import { AuthenticatedRequest, authenticateToken } from '@/lib/auth-middleware';
-import { getStoredInvoiceById, updateStoredInvoice } from '@/lib/invoices-store';
+import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   const { id } = req.query;
@@ -27,48 +26,45 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse, id: st
        WHERE ci.id = $1`,
       [id]
     );
+    if (invRes.rows.length === 0) return res.status(404).json({ message: 'Customer invoice not found' });
 
-    if (invRes.rows.length > 0) {
-      const itemsRes = await pool.query(
-        `SELECT 
-          cii.*,
-          p.product_name, p.sku, p.unit_of_measure
-         FROM customer_invoice_items cii
-         LEFT JOIN products p ON cii.product_id = p.id
-         WHERE cii.customer_invoice_id = $1
-         ORDER BY cii.id ASC`,
-        [id]
-      );
+    const itemsRes = await pool.query(
+      `SELECT 
+        cii.*,
+        p.product_name, p.sku, p.unit_of_measure
+       FROM customer_invoice_items cii
+       LEFT JOIN products p ON cii.product_id = p.id
+       WHERE cii.customer_invoice_id = $1
+       ORDER BY cii.id ASC`,
+      [id]
+    );
 
-      const paymentsRes = await pool.query(
-        `SELECT * FROM payments WHERE reference_type = 'Invoice' AND reference_id = $1 ORDER BY payment_date DESC`,
-        [id]
-      );
+    const paymentsRes = await pool.query(
+      `SELECT * FROM payments WHERE reference_type = 'Invoice' AND reference_id = $1 ORDER BY payment_date DESC`,
+      [id]
+    );
 
-      return res.status(200).json({
-        invoice: {
-          ...invRes.rows[0],
-          items: itemsRes.rows,
-          payments: paymentsRes.rows,
-        },
-      });
-    }
+    return res.status(200).json({
+      invoice: {
+        ...invRes.rows[0],
+        items: itemsRes.rows,
+        payments: paymentsRes.rows,
+      },
+    });
   } catch (error: any) {
-    // DB query error, fall through to storage fallback
+    return res.status(500).json({ message: 'Failed to fetch customer invoice', error: error.message });
   }
-
-  // Fallback to local storage
-  const stored = getStoredInvoiceById(id);
-  if (stored) {
-    return res.status(200).json({ invoice: stored });
-  }
-
-  return res.status(404).json({ message: 'Customer invoice not found' });
 }
 
 async function handleUpdate(req: AuthenticatedRequest, res: NextApiResponse, id: string) {
   try {
     const { status, due_date, notes } = req.body;
+
+    const VALID_STATUSES = ['Draft', 'Sent', 'Posted', 'Paid', 'Overdue', 'Cancelled'];
+    if (status && !VALID_STATUSES.includes(status)) {
+      return res.status(400).json({ message: `Invalid status '${status}'. Must be one of: ${VALID_STATUSES.join(', ')}` });
+    }
+
     const result = await pool.query(
       `UPDATE customer_invoices 
        SET status = COALESCE($1, status),
@@ -78,19 +74,11 @@ async function handleUpdate(req: AuthenticatedRequest, res: NextApiResponse, id:
        WHERE id = $4 RETURNING *`,
       [status, due_date, notes, id]
     );
-    if (result.rows.length > 0) {
-      return res.status(200).json({ message: 'Customer invoice updated successfully', invoice: result.rows[0] });
-    }
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Customer invoice not found' });
+    return res.status(200).json({ message: 'Customer invoice updated successfully', invoice: result.rows[0] });
   } catch (error: any) {
-    // DB query error, fall through
+    return res.status(500).json({ message: 'Failed to update customer invoice', error: error.message });
   }
-
-  const updated = updateStoredInvoice(id, req.body);
-  if (updated) {
-    return res.status(200).json({ message: 'Customer invoice updated successfully', invoice: updated });
-  }
-
-  return res.status(404).json({ message: 'Customer invoice not found' });
 }
 
 async function handleDelete(req: AuthenticatedRequest, res: NextApiResponse, id: string) {
@@ -99,19 +87,11 @@ async function handleDelete(req: AuthenticatedRequest, res: NextApiResponse, id:
       `UPDATE customer_invoices SET status = 'Cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
       [id]
     );
-    if (result.rows.length > 0) {
-      return res.status(200).json({ message: 'Customer invoice cancelled successfully' });
-    }
-  } catch (error: any) {
-    // DB query error, fall through
-  }
-
-  const updated = updateStoredInvoice(id, { status: 'Cancelled' });
-  if (updated) {
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Customer invoice not found' });
     return res.status(200).json({ message: 'Customer invoice cancelled successfully' });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Failed to cancel customer invoice', error: error.message });
   }
-
-  return res.status(404).json({ message: 'Customer invoice not found' });
 }
 
-export default authenticateToken(handler);
+export default requirePermission('canCreateTransactions', handler);

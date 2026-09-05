@@ -60,7 +60,7 @@ export async function postCustomerInvoice(
 
   // 2. Find Sales Journal
   const journalRes = await client.query(
-    "SELECT id FROM journals WHERE journal_type = 'Sales' OR code = 'SAL' LIMIT 1"
+    "SELECT id FROM journals WHERE journal_type = 'Sales' LIMIT 1"
   );
   const journalId = journalRes.rows[0]?.id || null;
   if (!journalId) {
@@ -207,7 +207,7 @@ export async function postVendorBill(
 
   // 2. Find Purchase Journal
   const journalRes = await client.query(
-    "SELECT id FROM journals WHERE journal_type = 'Purchase' OR code = 'PUR' LIMIT 1"
+    "SELECT id FROM journals WHERE journal_type = 'Purchase' LIMIT 1"
   );
   const journalId = journalRes.rows[0]?.id || null;
   if (!journalId) {

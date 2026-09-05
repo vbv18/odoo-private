@@ -103,13 +103,7 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
         }
       }
 
-      let safeCreatedBy: string | null = null;
-      if (req.user?.id && isValidUuid(req.user.id)) {
-        const userCheck = await client.query('SELECT 1 FROM users WHERE id = $1', [req.user.id]);
-        if (userCheck.rowCount && userCheck.rowCount > 0) {
-          safeCreatedBy = req.user.id;
-        }
-      }
+      const safeCreatedBy: string | null = req.user?.id && isValidUuid(req.user.id) ? req.user.id : null;
 
       const poRes = await client.query(
         `INSERT INTO purchase_orders (po_number, vendor_id, po_date, expected_delivery_date, status, subtotal, tax_amount, total_amount, notes, created_by)
