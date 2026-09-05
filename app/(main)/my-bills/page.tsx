@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/navigation/AuthContext';
 import { ReceiptIcon, SearchIcon, ArrowUpRightIcon } from '@/components/icons';
+import PrintInvoiceModal from '@/components/PrintInvoiceModal';
 
 interface Bill {
   id: string;
@@ -45,17 +46,24 @@ export default function MyBillsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selected, setSelected] = useState<Bill | null>(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   useEffect(() => {
     const fetchBills = async () => {
       setLoading(true);
       try {
-        const res = await fetch('/api/bills', {
+        const res = await fetch('/api/vendor-bills', {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
           const data = await res.json();
-          setBills(data.bills?.length > 0 ? data.bills : MOCK_BILLS);
+          const parsed = (data.bills || []).map((b: any) => ({
+            ...b,
+            total_amount: parseFloat(b.total_amount) || 0,
+            paid_amount: parseFloat(b.paid_amount) || 0,
+            balance_due: parseFloat(b.balance_due) || 0,
+          }));
+          setBills(parsed.length > 0 ? parsed : MOCK_BILLS);
         } else {
           setBills(MOCK_BILLS);
         }
@@ -78,8 +86,12 @@ export default function MyBillsPage() {
     return matchSearch && matchStatus;
   });
 
-  const totalDue = bills.filter(b => b.status !== 'Paid' && b.status !== 'Cancelled').reduce((s, b) => s + b.balance_due, 0);
-  const totalPaid = bills.filter(b => b.status === 'Paid').reduce((s, b) => s + b.paid_amount, 0);
+  const totalDue = bills
+    .filter(b => b.status !== 'Paid' && b.status !== 'Cancelled')
+    .reduce((s, b) => s + (parseFloat(String(b.balance_due)) || 0), 0);
+  const totalPaid = bills
+    .filter(b => b.status === 'Paid')
+    .reduce((s, b) => s + (parseFloat(String(b.paid_amount)) || 0), 0);
   const overdueCount = bills.filter(b => b.status === 'Overdue').length;
 
   return (
@@ -234,18 +246,55 @@ export default function MyBillsPage() {
                   <p className="text-[13px] text-[#111827] bg-[#F7F8FA] p-3 rounded-lg">{selected.notes}</p>
                 </div>
               )}
-              {selected.balance_due > 0 && selected.status !== 'Cancelled' && (
-                <a
-                  href="/make-payment"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#F59E0B] text-white rounded-lg text-[13px] font-semibold hover:bg-amber-500 transition-colors mt-2"
+
+              <div className="space-y-2 pt-2">
+                <button
+                  onClick={() => setShowPrintModal(true)}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-600 text-white rounded-lg text-[13px] font-semibold hover:bg-blue-700 transition-colors shadow-xs"
                 >
-                  Pay Bill <ArrowUpRightIcon size={14} />
-                </a>
-              )}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 6 2 18 2 18 9" />
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                    <rect x="6" width="12" height="8" y="14" />
+                  </svg>
+                  Print Vendor Bill & Voucher
+                </button>
+
+                {selected.balance_due > 0 && selected.status !== 'Cancelled' && (
+                  <a
+                    href="/make-payment"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#F59E0B] text-white rounded-lg text-[13px] font-semibold hover:bg-amber-500 transition-colors"
+                  >
+                    Pay Bill <ArrowUpRightIcon size={14} />
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Print Bill Modal */}
+      <PrintInvoiceModal
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        invoice={
+          selected
+            ? {
+                bill_number: selected.bill_number,
+                bill_date: selected.bill_date,
+                due_date: selected.due_date,
+                vendor_name: selected.vendor_name || 'Urban Furniture Pvt Ltd',
+                status: selected.status,
+                total_amount: selected.total_amount,
+                paid_amount: selected.paid_amount,
+                balance_due: selected.balance_due,
+                notes: selected.notes || `Vendor procurement bill`,
+                type: 'bill',
+              }
+            : null
+        }
+      />
     </div>
   );
 }

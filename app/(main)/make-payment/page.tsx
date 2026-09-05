@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/navigation/AuthContext';
-import { CreditCardIcon, CheckIcon, ArrowUpRightIcon } from '@/components/icons';
+import { CreditCardIcon, CheckIcon, ArrowUpRightIcon, FileTextIcon } from '@/components/icons';
+import PrintInvoiceModal from '@/components/PrintInvoiceModal';
 
 const PAYMENT_METHODS = ['Bank Transfer', 'UPI', 'NEFT/RTGS', 'Cheque', 'Cash'];
 
@@ -37,6 +38,10 @@ export default function MakePaymentPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [paymentRef, setPaymentRef] = useState('');
+  const [generatedInvoice, setGeneratedInvoice] = useState<any>(null);
+  const [generatedBill, setGeneratedBill] = useState<any>(null);
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   const [form, setForm] = useState({
     amount: '',
@@ -89,6 +94,9 @@ export default function MakePaymentPage() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      const parsedAmount = Number(form.amount) || 0;
+
+      // 1. Submit payment record
       const res = await fetch('/api/payments', {
         method: 'POST',
         headers: {
@@ -96,18 +104,96 @@ export default function MakePaymentPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          payment_type: 'Payment',
+          payment_type: form.paymentFor === 'bill' ? 'Vendor Payment' : 'Payment',
           payment_method: form.paymentMethod,
           partner_id: null,
+          partner_name: user?.name || user?.loginId || (form.paymentFor === 'bill' ? 'Urban Furniture Vendor' : 'Urban Furniture Client'),
           payment_date: form.paymentDate,
-          amount: Number(form.amount),
+          amount: parsedAmount,
+          reference_type: form.paymentFor === 'bill' ? 'Bill' : 'Customer Invoice',
           reference_number: form.referenceNumber || undefined,
-          notes: form.notes || `${form.paymentFor} payment by ${user?.name || user?.loginId}`,
+          notes: form.notes || `${form.paymentFor} settlement by ${user?.name || user?.loginId}`,
         }),
       });
       const data = await res.json();
-      setPaymentRef(data.payment?.payment_number || `PAY-${Date.now()}`);
-    } catch {
+      const payNumber = data.payment?.payment_number || `PAY-${Date.now()}`;
+      setPaymentRef(payNumber);
+
+      const lineSubtotal = Number((parsedAmount / 1.18).toFixed(2));
+
+      if (form.paymentFor === 'bill') {
+        // 2a. Automatically generate and store vendor bill
+        const billRes = await fetch('/api/vendor-bills', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            vendor_id: '5e6ddab9-30f8-4eee-a3de-9170066a63f3',
+            bill_date: form.paymentDate,
+            due_date: form.paymentDate,
+            status: 'Paid',
+            notes: `Settlement for ${payNumber} (${form.paymentMethod}) | Ref: ${form.referenceNumber || 'N/A'} | ${form.notes || 'Vendor Bill'}`,
+            items: [
+              {
+                description: `Bill Settlement (${payNumber}) - ${form.notes || 'Procurement & Materials'}`,
+                quantity: 1,
+                unit_price: lineSubtotal,
+                tax_rate: 18,
+              },
+            ],
+          }),
+        });
+
+        if (billRes.ok) {
+          const billData = await billRes.json();
+          setGeneratedBill({
+            ...billData.bill,
+            payment_ref: payNumber,
+            payment_method: form.paymentMethod,
+            type: 'bill',
+          });
+        }
+      } else {
+        // 2b. Automatically generate and store customer invoice
+        const invRes = await fetch('/api/customer-invoices', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            customer_id: '5e6ddab9-30f8-4eee-a3de-9170066a63f3',
+            customer_name: user?.name || user?.loginId || 'Urban Furniture Client',
+            invoice_date: form.paymentDate,
+            due_date: form.paymentDate,
+            status: 'Paid',
+            paid_amount: parsedAmount,
+            notes: `Settlement for ${payNumber} (${form.paymentMethod}) | Ref: ${form.referenceNumber || 'N/A'} | ${form.notes || form.paymentFor}`,
+            items: [
+              {
+                description: `${form.paymentFor.toUpperCase()} Settlement (${payNumber})`,
+                quantity: 1,
+                unit_price: lineSubtotal,
+                tax_rate: 18,
+              },
+            ],
+          }),
+        });
+
+        if (invRes.ok) {
+          const invData = await invRes.json();
+          setGeneratedInvoice({
+            ...invData.invoice,
+            payment_ref: payNumber,
+            payment_method: form.paymentMethod,
+            type: 'invoice',
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Submit error:', err);
       setPaymentRef(`PAY-${Date.now()}`);
     } finally {
       setSubmitting(false);
@@ -120,8 +206,51 @@ export default function MakePaymentPage() {
     setErrors({});
     setStep('details');
     setPaymentRef('');
+    setGeneratedInvoice(null);
+    setGeneratedBill(null);
+    setIsGeneratingInvoice(false);
     // Refresh recent
     setRecentPayments(MOCK_RECENT);
+  };
+
+  const handleGenerateInvoice = async () => {
+    setIsGeneratingInvoice(true);
+    try {
+      const parsedAmount = Number(form.amount) || 0;
+      const lineSubtotal = Number((parsedAmount / 1.18).toFixed(2));
+      const lineTax = Number((parsedAmount - lineSubtotal).toFixed(2));
+      const res = await fetch('/api/customer-invoices', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          customer_id: 'c1',
+          customer_name: user?.name || user?.loginId || 'Customer',
+          invoice_date: form.paymentDate,
+          due_date: form.paymentDate,
+          status: 'Paid',
+          notes: `Generated for payment ${paymentRef} (${form.paymentMethod}) - ${form.notes || form.paymentFor}`,
+          items: [
+            {
+              description: `${form.paymentFor.toUpperCase()} Settlement (${paymentRef})`,
+              quantity: 1,
+              unit_price: lineSubtotal,
+              tax_rate: 18,
+            },
+          ],
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGeneratedInvoice(data.invoice);
+      }
+    } catch (e) {
+      console.error('Error generating invoice:', e);
+    } finally {
+      setIsGeneratingInvoice(false);
+    }
   };
 
   return (
@@ -329,27 +458,88 @@ export default function MakePaymentPage() {
                   <h2 className="text-[18px] font-bold text-[#111827]">Payment Successful!</h2>
                   <p className="text-[13px] text-[#667085] mt-1">Your payment of <span className="font-semibold text-[#111827]">{formatINR(Number(form.amount))}</span> has been recorded.</p>
                 </div>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3 inline-block">
-                  <p className="text-[11px] text-green-600 font-semibold uppercase tracking-wider">Payment Reference</p>
-                  <p className="text-[16px] font-bold text-green-700 mt-0.5">{paymentRef}</p>
+                <div className="grid grid-cols-2 gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3 text-left">
+                  <div>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Payment Reference</p>
+                    <p className="text-[15px] font-bold text-gray-900 mt-0.5">{paymentRef}</p>
+                  </div>
+                  <div className="border-l border-gray-200 pl-3">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                      {form.paymentFor === 'bill' ? 'Vendor Bill' : form.paymentFor === 'advance' ? 'Advance Reference' : 'Tax Invoice'}
+                    </p>
+                    <p className={`text-[15px] font-bold mt-0.5 ${form.paymentFor === 'bill' ? 'text-blue-700' : 'text-green-700'}`}>
+                      {form.paymentFor === 'bill'
+                        ? (generatedBill?.bill_number || 'BILL-AUTO-GENERATED')
+                        : (generatedInvoice?.invoice_number || 'INV-AUTO-GENERATED')}
+                    </p>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 pt-2">
+
+                <div className="space-y-3 pt-2">
                   <button
-                    onClick={handleReset}
-                    className="py-2.5 border border-[#E5E7EB] text-[#667085] rounded-lg text-[13px] font-medium hover:bg-[#F7F8FA] transition-colors"
+                    onClick={() => setShowPrintModal(true)}
+                    className="w-full py-3 bg-blue-600 text-white rounded-lg text-[13px] font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
                   >
-                    Make Another Payment
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 6 2 18 2 18 9" />
+                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                      <rect x="6" width="12" height="8" y="14" />
+                    </svg>
+                    {form.paymentFor === 'bill' ? 'Print Vendor Bill & Voucher' : 'Print Tax Invoice & Receipt Voucher'}
                   </button>
-                  <a
-                    href="/my-invoices"
-                    className="py-2.5 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    View My Invoices
-                  </a>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={handleReset}
+                      className="py-2.5 border border-[#E5E7EB] text-[#667085] rounded-lg text-[13px] font-medium hover:bg-[#F7F8FA] transition-colors"
+                    >
+                      Make Another Payment
+                    </button>
+                    <a
+                      href={form.paymentFor === 'bill' ? '/my-bills' : '/my-invoices'}
+                      className="py-2.5 bg-gray-900 text-white rounded-lg text-[13px] font-semibold hover:bg-black transition-colors flex items-center justify-center gap-2"
+                    >
+                      {form.paymentFor === 'bill' ? 'View My Bills' : 'View My Invoices'} <ArrowUpRightIcon size={13} />
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
           </div>
+
+          <PrintInvoiceModal
+            isOpen={showPrintModal}
+            onClose={() => setShowPrintModal(false)}
+            invoice={
+              form.paymentFor === 'bill'
+                ? (generatedBill || {
+                    bill_number: `BILL-AUTO-${paymentRef}`,
+                    bill_date: form.paymentDate,
+                    vendor_name: 'Urban Furniture Pvt Ltd',
+                    status: 'Paid',
+                    total_amount: Number(form.amount),
+                    paid_amount: Number(form.amount),
+                    balance_due: 0,
+                    notes: form.notes || `Bill settlement via ${form.paymentMethod} (Ref: ${paymentRef})`,
+                    payment_ref: paymentRef,
+                    payment_method: form.paymentMethod,
+                    type: 'bill',
+                  })
+                : (generatedInvoice || {
+                    invoice_number: `INV-AUTO-${paymentRef}`,
+                    invoice_date: form.paymentDate,
+                    customer_name: user?.name || user?.loginId || 'Urban Furniture Client',
+                    status: 'Paid',
+                    total_amount: Number(form.amount),
+                    paid_amount: Number(form.amount),
+                    balance_due: 0,
+                    notes: form.notes || `Settlement via ${form.paymentMethod} (Ref: ${paymentRef})`,
+                    payment_ref: paymentRef,
+                    payment_method: form.paymentMethod,
+                    type: 'invoice',
+                  })
+            }
+          />
 
           {/* Right: Recent Payments */}
           <div className="space-y-4">

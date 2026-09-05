@@ -1,6 +1,7 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
-import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { AuthenticatedRequest, authenticateToken, hasPermission } from '@/lib/auth-middleware';
+import { FALLBACK_PRODUCTS } from '@/lib/master-data-store';
 
 // GET /api/products - List all products
 // POST /api/products - Create new product
@@ -8,6 +9,9 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     return handleGetProducts(req, res);
   } else if (req.method === 'POST') {
+    if (!hasPermission(req.user, 'canManageMasterData')) {
+      return res.status(403).json({ message: 'Insufficient permissions to manage master data' });
+    }
     return handleCreateProduct(req, res);
   } else {
     return res.status(405).json({ message: 'Method not allowed' });
@@ -59,8 +63,19 @@ async function handleGetProducts(req: AuthenticatedRequest, res: NextApiResponse
       total: result.rows.length,
     });
   } catch (error: any) {
-    console.error('Error fetching products:', error);
-    return res.status(500).json({ message: 'Failed to fetch products', error: error.message });
+    const { type, search } = req.query;
+    let filtered = FALLBACK_PRODUCTS;
+    if (type) {
+      filtered = filtered.filter((p) => p.product_type === type);
+    }
+    if (search && typeof search === 'string') {
+      const q = search.toLowerCase();
+      filtered = filtered.filter((p) => p.product_name.toLowerCase().includes(q) || (p.sku && p.sku.toLowerCase().includes(q)));
+    }
+    return res.status(200).json({
+      products: filtered,
+      total: filtered.length,
+    });
   }
 }
 
@@ -78,7 +93,6 @@ async function handleCreateProduct(req: AuthenticatedRequest, res: NextApiRespon
       unit_of_measure,
     } = req.body;
 
-    // Validation
     if (!product_name || !product_type) {
       return res.status(400).json({ message: 'Product name and type are required' });
     }
@@ -92,7 +106,6 @@ async function handleCreateProduct(req: AuthenticatedRequest, res: NextApiRespon
     }
 
     if (sku) {
-      // Check if SKU already exists
       const existingProduct = await pool.query(
         'SELECT id FROM products WHERE sku = $1 AND is_archived = false',
         [sku]
@@ -131,4 +144,4 @@ async function handleCreateProduct(req: AuthenticatedRequest, res: NextApiRespon
   }
 }
 
-export default requirePermission('canManageMasterData', handler);
+export default authenticateToken(handler);

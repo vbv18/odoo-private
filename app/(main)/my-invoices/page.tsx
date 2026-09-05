@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/navigation/AuthContext';
 import { FileTextIcon, SearchIcon, CalendarIcon, ChevronDownIcon, ArrowUpRightIcon } from '@/components/icons';
+import PrintInvoiceModal from '@/components/PrintInvoiceModal';
 
 interface Invoice {
   id: string;
@@ -45,6 +46,7 @@ export default function MyInvoicesPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selected, setSelected] = useState<Invoice | null>(null);
+  const [printInvoiceData, setPrintInvoiceData] = useState<any>(null);
 
   useEffect(() => {
     const fetchInvoices = async () => {
@@ -77,14 +79,25 @@ export default function MyInvoicesPage() {
     return matchSearch && matchStatus;
   });
 
-  const totalOutstanding = invoices.filter(i => i.status !== 'Paid' && i.status !== 'Cancelled').reduce((s, i) => s + i.balance_due, 0);
-  const totalPaid = invoices.filter(i => i.status === 'Paid').reduce((s, i) => s + i.paid_amount, 0);
-  const overdueCount = invoices.filter(i => i.status === 'Overdue').length;
+  const toNum = (v: any): number => {
+    if (v === null || v === undefined) return 0;
+    const n = parseFloat(String(v));
+    return isNaN(n) ? 0 : n;
+  };
+
+  const totalOutstanding = invoices
+    .filter((i) => i.status !== 'Paid' && i.status !== 'Cancelled')
+    .reduce((s, i) => s + toNum(i.balance_due !== undefined ? i.balance_due : (toNum(i.total_amount) - toNum(i.paid_amount))), 0);
+
+  const totalPaid = invoices
+    .reduce((s, i) => s + toNum(i.paid_amount || (i.status === 'Paid' ? i.total_amount : 0)), 0);
+
+  const overdueCount = invoices.filter((i) => i.status === 'Overdue').length;
 
   return (
     <div className="min-h-screen bg-[#F7F8FA]">
       {/* Header */}
-      <div className="bg-white border-b border-[#E5E7EB] px-6 py-4">
+      <div className="bg-white border-b border-[#E5E7EB] px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
             <FileTextIcon size={18} className="text-[#2563EB]" />
@@ -93,6 +106,20 @@ export default function MyInvoicesPage() {
             <h1 className="text-[18px] font-semibold text-[#111827]">My Invoices</h1>
             <p className="text-[12px] text-[#667085]">All invoices raised against your account</p>
           </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <a
+            href="/make-payment"
+            className="px-3 py-2 border border-[#E5E7EB] text-[#344054] rounded-lg text-[13px] font-medium hover:bg-[#F7F8FA] transition-colors"
+          >
+            Make Payment
+          </a>
+          <a
+            href="/sales/invoices/new"
+            className="px-3.5 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1.5"
+          >
+            <span>+ Create Invoice</span>
+          </a>
         </div>
       </div>
 
@@ -226,18 +253,38 @@ export default function MyInvoicesPage() {
                   <p className="text-[13px] text-[#111827] bg-[#F7F8FA] p-3 rounded-lg">{selected.notes}</p>
                 </div>
               )}
-              {selected.balance_due > 0 && selected.status !== 'Cancelled' && (
-                <a
-                  href="/make-payment"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-blue-700 transition-colors mt-2"
+              <div className="space-y-2 mt-4">
+                <button
+                  onClick={() => setPrintInvoiceData(selected)}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-gray-900 text-white rounded-lg text-[13px] font-semibold hover:bg-black transition-colors shadow-xs"
                 >
-                  Pay Now <ArrowUpRightIcon size={14} />
-                </a>
-              )}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 6 2 18 2 18 9" />
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                    <rect x="6" y="14" width="12" height="8" />
+                  </svg>
+                  Print Tax Invoice
+                </button>
+
+                {selected.balance_due > 0 && selected.status !== 'Cancelled' && (
+                  <a
+                    href="/make-payment"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Pay Now <ArrowUpRightIcon size={14} />
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      <PrintInvoiceModal
+        isOpen={Boolean(printInvoiceData)}
+        onClose={() => setPrintInvoiceData(null)}
+        invoice={printInvoiceData}
+      />
     </div>
   );
 }

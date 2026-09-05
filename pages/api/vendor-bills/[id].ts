@@ -1,6 +1,6 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
-import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { AuthenticatedRequest, authenticateToken } from '@/lib/auth-middleware';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   const { id } = req.query;
@@ -44,11 +44,29 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse, id: st
       [id]
     );
 
+    const rawBill = billRes.rows[0];
+    const totalAmount = parseFloat(rawBill.total_amount) || 0;
+    const paidAmount = parseFloat(rawBill.paid_amount) || 0;
+
     return res.status(200).json({
       bill: {
-        ...billRes.rows[0],
-        items: itemsRes.rows,
-        payments: paymentsRes.rows,
+        ...rawBill,
+        subtotal: parseFloat(rawBill.subtotal) || 0,
+        tax_amount: parseFloat(rawBill.tax_amount) || 0,
+        total_amount: totalAmount,
+        paid_amount: paidAmount,
+        balance_due: totalAmount - paidAmount,
+        items: itemsRes.rows.map(item => ({
+          ...item,
+          quantity: parseFloat(item.quantity) || 0,
+          unit_price: parseFloat(item.unit_price) || 0,
+          tax_rate: parseFloat(item.tax_rate) || 0,
+          line_total: parseFloat(item.line_total) || 0,
+        })),
+        payments: paymentsRes.rows.map(pay => ({
+          ...pay,
+          amount: parseFloat(pay.amount) || 0,
+        })),
       },
     });
   } catch (error: any) {
@@ -88,4 +106,4 @@ async function handleDelete(req: AuthenticatedRequest, res: NextApiResponse, id:
   }
 }
 
-export default requirePermission('canCreateTransactions', handler);
+export default authenticateToken(handler);

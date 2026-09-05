@@ -20,48 +20,50 @@ async function handleGetTransactions(req: AuthenticatedRequest, res: NextApiResp
 
     const result = await pool.query(`
       SELECT 
-        id::text, created_at as date, 'SO' as type, so_number as reference_no,
-        customer_name as partner, total_amount as amount, status,
-        due_date, notes
-      FROM sales_orders
-      WHERE is_archived = false
+        so.id::text, so.created_at as date, 'SO' as type, so.so_number as reference_no,
+        COALESCE(c.name, 'Customer') as partner, so.total_amount as amount, so.status,
+        so.expected_delivery_date as due_date, so.notes
+      FROM sales_orders so
+      LEFT JOIN contacts c ON so.customer_id = c.id
+      WHERE so.is_archived = false
 
       UNION ALL
 
       SELECT 
-        id::text, created_at as date, 'PO' as type, po_number as reference_no,
-        vendor_name as partner, total_amount as amount, status,
-        expected_delivery_date as due_date, notes
-      FROM purchase_orders
-      WHERE is_archived = false
+        po.id::text, po.created_at as date, 'PO' as type, po.po_number as reference_no,
+        COALESCE(c.name, 'Vendor') as partner, po.total_amount as amount, po.status,
+        po.expected_delivery_date as due_date, po.notes
+      FROM purchase_orders po
+      LEFT JOIN contacts c ON po.vendor_id = c.id
+      WHERE po.is_archived = false
 
       UNION ALL
 
       SELECT 
-        id::text, created_at as date, 'Invoice' as type, invoice_number as reference_no,
-        customer_name as partner, total_amount as amount, status,
-        due_date, notes
-      FROM customer_invoices
-      WHERE is_archived = false
+        ci.id::text, ci.created_at as date, 'Invoice' as type, ci.invoice_number as reference_no,
+        COALESCE(c.name, 'Customer') as partner, ci.total_amount as amount, ci.status,
+        ci.due_date, ci.notes
+      FROM customer_invoices ci
+      LEFT JOIN contacts c ON ci.customer_id = c.id
 
       UNION ALL
 
       SELECT 
-        id::text, created_at as date, 'Bill' as type, bill_number as reference_no,
-        vendor_name as partner, total_amount as amount, status,
-        due_date, notes
-      FROM vendor_bills
-      WHERE is_archived = false
+        vb.id::text, vb.created_at as date, 'Bill' as type, vb.bill_number as reference_no,
+        COALESCE(c.name, 'Vendor') as partner, vb.total_amount as amount, vb.status,
+        vb.due_date, vb.notes
+      FROM vendor_bills vb
+      LEFT JOIN contacts c ON vb.vendor_id = c.id
 
       UNION ALL
 
       SELECT 
-        id::text, created_at as date, 'Payment' as type, payment_number as reference_no,
-        COALESCE(customer_name, vendor_name, 'General') as partner,
-        amount, 'Paid' as status,
-        NULL::date as due_date, notes
-      FROM payments
-      WHERE is_archived = false
+        p.id::text, p.created_at as date, 'Payment' as type, p.payment_number as reference_no,
+        COALESCE(c.name, 'General') as partner,
+        p.amount, 'Paid' as status,
+        NULL::date as due_date, p.notes
+      FROM payments p
+      LEFT JOIN contacts c ON p.partner_id = c.id
 
       ORDER BY date DESC
       LIMIT $1

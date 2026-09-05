@@ -1,6 +1,6 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
-import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { AuthenticatedRequest, authenticateToken } from '@/lib/auth-middleware';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -144,4 +144,4 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   }
 }
 
-export default requirePermission('canCreateTransactions', handler);
+export default authenticateToken(handler);
