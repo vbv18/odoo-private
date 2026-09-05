@@ -1,14 +1,21 @@
 import { NextApiResponse } from 'next';
-import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { AuthenticatedRequest, authenticateToken, hasPermission } from '@/lib/auth-middleware';
 import { isDbAvailable } from '@/lib/db-safe';
 import { getContacts, saveContacts } from '@/lib/mock-data';
 import { pool } from '@/lib/db';
 import { randomUUID } from 'crypto';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
-  if (req.method === 'GET') return handleGetContacts(req, res);
-  if (req.method === 'POST') return handleCreateContact(req, res);
-  return res.status(405).json({ message: 'Method not allowed' });
+  if (req.method === 'GET') {
+    return handleGetContacts(req, res);
+  } else if (req.method === 'POST') {
+    if (!hasPermission(req.user, 'canManageMasterData')) {
+      return res.status(403).json({ message: 'Insufficient permissions to manage master data' });
+    }
+    return handleCreateContact(req, res);
+  } else {
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
 }
 
 async function handleGetContacts(req: AuthenticatedRequest, res: NextApiResponse) {
@@ -72,4 +79,4 @@ async function handleCreateContact(req: AuthenticatedRequest, res: NextApiRespon
   }
 }
 
-export default requirePermission('canManageMasterData', handler);
+export default authenticateToken(handler);

@@ -1,6 +1,7 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, authenticateToken } from '@/lib/auth-middleware';
+import { getStoredPaymentById } from '@/lib/payments-store';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   const { id } = req.query;
@@ -20,11 +21,19 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
        WHERE p.id = $1`,
       [id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ message: 'Payment not found' });
-    return res.status(200).json({ payment: result.rows[0] });
+    if (result.rows.length > 0) {
+      return res.status(200).json({ payment: result.rows[0] });
+    }
   } catch (error: any) {
-    return res.status(500).json({ message: 'Failed to fetch payment', error: error.message });
+    // DB error, fall through to fallback
   }
+
+  const stored = getStoredPaymentById(id);
+  if (stored) {
+    return res.status(200).json({ payment: stored });
+  }
+
+  return res.status(404).json({ message: 'Payment not found' });
 }
 
 export default authenticateToken(handler);

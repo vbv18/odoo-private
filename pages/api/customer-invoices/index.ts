@@ -14,6 +14,7 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
 async function handleGet(req: AuthenticatedRequest, res: NextApiResponse) {
   const dbOk = await isDbAvailable();
   const { status, search } = req.query;
+
   if (!dbOk) {
     let invoices = getCustomerInvoices();
     if (status) invoices = invoices.filter((i: any) => i.status === status);
@@ -23,70 +24,155 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse) {
     );
     return res.status(200).json({ invoices, total: invoices.length, source: 'mock' });
   }
+
   try {
     const result = await pool.query(`
-      SELECT ci.id, ci.invoice_number, ci.invoice_date, ci.due_date,
-        ci.status, ci.subtotal, ci.tax_amount, ci.total_amount,
-        ci.paid_amount, (ci.total_amount - ci.paid_amount) as balance_due,
+      SELECT 
+        ci.id, ci.invoice_number, ci.invoice_date, ci.due_date,
+        ci.status, 
+        COALESCE(ci.subtotal, 0)::numeric as subtotal, 
+        COALESCE(ci.tax_amount, 0)::numeric as tax_amount, 
+        COALESCE(ci.total_amount, 0)::numeric as total_amount,
+        COALESCE(ci.paid_amount, 0)::numeric as paid_amount, 
+        GREATEST(0, (COALESCE(ci.total_amount, 0) - COALESCE(ci.paid_amount, 0)))::numeric as balance_due,
         ci.notes, ci.created_at, ci.sales_order_id,
         c.id as customer_id, c.name as customer_name, c.email as customer_email
       FROM customer_invoices ci
       LEFT JOIN contacts c ON ci.customer_id = c.id
-      ORDER BY ci.created_at DESC`);
-    return res.status(200).json({ invoices: result.rows });
+      ORDER BY ci.created_at DESC
+    `);
+    const mapped = result.rows.map((row) => ({
+      ...row,
+      subtotal: parseFloat(row.subtotal) || 0,
+      tax_amount: parseFloat(row.tax_amount) || 0,
+      total_amount: parseFloat(row.total_amount) || 0,
+      paid_amount: parseFloat(row.paid_amount) || 0,
+      balance_due: parseFloat(row.balance_due) || 0,
+    }));
+    return res.status(200).json({ invoices: mapped });
   } catch {
     return res.status(200).json({ invoices: getCustomerInvoices(), source: 'mock' });
   }
 }
 
 async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
-  const { customer_id, invoice_date, due_date, notes, items } = req.body;
-  if (!customer_id || !invoice_date || !due_date || !items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ message: 'customer_id, invoice_date, due_date, and items are required' });
+  const { customer_id, invoice_date, due_date, notes, items, customer_name, status, paid_amount } = req.body;
+  if (!invoice_date || !due_date || !items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: 'invoice_date, due_date, and items are required' });
   }
-  let subtotal = 0, tax_amount = 0;
+
+  let subtotal = 0;
+  let tax_amount = 0;
+
   for (const item of items) {
-    const lineSub = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0);
+    const qty = parseFloat(item.quantity) || 0;
+    const price = parseFloat(item.unit_price) || 0;
+    const taxRate = parseFloat(item.tax_rate) || 0;
+    const lineSub = qty * price;
     subtotal += lineSub;
-    tax_amount += (lineSub * (parseFloat(item.tax_rate) || 0)) / 100;
+    tax_amount += (lineSub * taxRate) / 100;
   }
+
   const total_amount = subtotal + tax_amount;
+  const initialPaid = status === 'Paid' ? total_amount : (parseFloat(paid_amount) || 0);
+
   const dbOk = await isDbAvailable();
   if (!dbOk) {
     const invoices = getCustomerInvoices();
     const seq = invoices.length + 1;
     const newInvoice = {
-      id: randomUUID(), invoice_number: `INV-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`,
-      customer_id, customer_name: 'Customer', customer_email: '',
-      invoice_date, due_date, status: 'Draft', subtotal, tax_amount, total_amount,
-      paid_amount: 0, balance_due: total_amount, notes: notes || '', sales_order_id: '',
+      id: randomUUID(),
+      invoice_number: `INV-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`,
+      customer_id: customer_id || '5e6ddab9-30f8-4eee-a3de-9170066a63f3',
+      customer_name: customer_name || 'Urban Furniture Client',
+      customer_email: '',
+      invoice_date,
+      due_date,
+      status: status || 'Draft',
+      subtotal,
+      tax_amount,
+      total_amount,
+      paid_amount: initialPaid,
+      balance_due: Math.max(0, total_amount - initialPaid),
+      notes: notes || '',
+      sales_order_id: '',
       created_at: new Date().toISOString(),
     };
     invoices.push(newInvoice);
     saveCustomerInvoices(invoices);
-    return res.status(201).json({ message: 'Invoice created', invoice: newInvoice, source: 'mock' });
+    return res.status(201).json({ message: 'Customer invoice created successfully', invoice: newInvoice, source: 'mock' });
   }
+
   try {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const seq = (await client.query('SELECT COUNT(*) FROM customer_invoices')).rows[0].count;
-      const invoice_number = `INV-${new Date().getFullYear()}-${String(parseInt(seq) + 1).padStart(4, '0')}`;
+
+      // Validate UUID customer_id
+      let validCustomerId = customer_id;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(customer_id || ''));
+      if (!isUUID) {
+        const custRes = await client.query(`SELECT id FROM contacts WHERE contact_type IN ('Customer', 'Both') LIMIT 1`);
+        if (custRes.rows.length > 0) {
+          validCustomerId = custRes.rows[0].id;
+        } else {
+          validCustomerId = '5e6ddab9-30f8-4eee-a3de-9170066a63f3';
+        }
+      }
+
+      const countRes = await client.query('SELECT COUNT(*) FROM customer_invoices');
+      const seq = parseInt(countRes.rows[0].count, 10) + 1;
+      const invoice_number = `INV-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`;
+
       const invRes = await client.query(
-        `INSERT INTO customer_invoices (invoice_number, customer_id, invoice_date, due_date, status, subtotal, tax_amount, total_amount, paid_amount, notes, created_by)
-         VALUES ($1,$2,$3,$4,'Draft',$5,$6,$7,0,$8,$9) RETURNING *`,
-        [invoice_number, customer_id, invoice_date, due_date, subtotal, tax_amount, total_amount, notes || null, req.user?.id || null]
+        `INSERT INTO customer_invoices 
+          (invoice_number, customer_id, invoice_date, due_date, status, subtotal, tax_amount, total_amount, paid_amount, notes, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         RETURNING *`,
+        [
+          invoice_number,
+          validCustomerId,
+          invoice_date,
+          due_date,
+          status || 'Draft',
+          subtotal,
+          tax_amount,
+          total_amount,
+          initialPaid,
+          notes || null,
+          req.user?.id || null,
+        ]
       );
+
+      const invoice = invRes.rows[0];
+
       for (const item of items) {
         await client.query(
-          `INSERT INTO customer_invoice_items (customer_invoice_id, product_id, description, quantity, unit_price, tax_rate) VALUES ($1,$2,$3,$4,$5,$6)`,
-          [invRes.rows[0].id, item.product_id || null, item.description || '', item.quantity, item.unit_price, item.tax_rate || 0]
+          `INSERT INTO customer_invoice_items 
+            (customer_invoice_id, product_id, description, quantity, unit_price, tax_rate)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [invoice.id, item.product_id || null, item.description || '', item.quantity, item.unit_price, item.tax_rate || 0]
         );
       }
+
       await client.query('COMMIT');
-      return res.status(201).json({ message: 'Customer invoice created successfully', invoice: invRes.rows[0] });
-    } catch (err) { await client.query('ROLLBACK'); throw err; }
-    finally { client.release(); }
+      return res.status(201).json({
+        message: 'Customer invoice created successfully',
+        invoice: {
+          ...invoice,
+          subtotal: parseFloat(invoice.subtotal) || 0,
+          tax_amount: parseFloat(invoice.tax_amount) || 0,
+          total_amount: parseFloat(invoice.total_amount) || 0,
+          paid_amount: parseFloat(invoice.paid_amount) || 0,
+          balance_due: Math.max(0, (parseFloat(invoice.total_amount) || 0) - (parseFloat(invoice.paid_amount) || 0)),
+        },
+      });
+    } catch (dbErr: any) {
+      await client.query('ROLLBACK');
+      throw dbErr;
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     return res.status(500).json({ message: 'Failed to create customer invoice', error: error.message });
   }

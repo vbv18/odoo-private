@@ -16,7 +16,7 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse) {
   const { search, archived } = req.query;
   if (!dbOk) {
     let products = getProducts();
-    if (search) products = products.filter((p: any) => p.name.toLowerCase().includes((search as string).toLowerCase()) || (p.sku || '').toLowerCase().includes((search as string).toLowerCase()));
+    if (search) products = products.filter((p: any) => (p.name || p.product_name || '').toLowerCase().includes((search as string).toLowerCase()) || (p.sku || '').toLowerCase().includes((search as string).toLowerCase()));
     if (archived !== 'true') products = products.filter((p: any) => !p.is_archived);
     return res.status(200).json({ products, total: products.length, source: 'mock' });
   }

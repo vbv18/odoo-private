@@ -32,19 +32,19 @@ async function handleGetTransactions(req: AuthenticatedRequest, res: NextApiResp
   try {
     const result = await pool.query(`
       SELECT id::text, created_at as date, 'SO' as type, order_number as reference_no,
-        c.name as partner, so.total_amount as amount, so.status, so.delivery_date as due_date, so.notes
+        COALESCE(c.name, 'Customer') as partner, so.total_amount as amount, so.status, so.delivery_date as due_date, so.notes
       FROM sales_orders so LEFT JOIN contacts c ON so.customer_id = c.id
       UNION ALL
       SELECT id::text, created_at as date, 'PO' as type, order_number as reference_no,
-        c.name as partner, po.total_amount as amount, po.status, po.expected_date as due_date, po.notes
+        COALESCE(c.name, 'Vendor') as partner, po.total_amount as amount, po.status, po.expected_date as due_date, po.notes
       FROM purchase_orders po LEFT JOIN contacts c ON po.vendor_id = c.id
       UNION ALL
       SELECT id::text, created_at as date, 'Invoice' as type, invoice_number as reference_no,
-        c.name as partner, ci.total_amount as amount, ci.status, ci.due_date, ci.notes
+        COALESCE(c.name, 'Customer') as partner, ci.total_amount as amount, ci.status, ci.due_date, ci.notes
       FROM customer_invoices ci LEFT JOIN contacts c ON ci.customer_id = c.id
       UNION ALL
       SELECT id::text, created_at as date, 'Bill' as type, bill_number as reference_no,
-        c.name as partner, vb.total_amount as amount, vb.status, vb.due_date, vb.notes
+        COALESCE(c.name, 'Vendor') as partner, vb.total_amount as amount, vb.status, vb.due_date, vb.notes
       FROM vendor_bills vb LEFT JOIN contacts c ON vb.vendor_id = c.id
       UNION ALL
       SELECT id::text, created_at as date, 'Payment' as type, payment_number as reference_no,
@@ -52,7 +52,11 @@ async function handleGetTransactions(req: AuthenticatedRequest, res: NextApiResp
       FROM payments p LEFT JOIN contacts c ON p.partner_id = c.id
       ORDER BY date DESC LIMIT $1
     `, [parseInt(limit as string) || 50]);
-    return res.status(200).json({ transactions: result.rows });
+    const transactions = result.rows.map(tx => ({
+      ...tx,
+      amount: parseFloat(tx.amount) || 0,
+    }));
+    return res.status(200).json({ transactions });
   } catch (error: any) {
     console.error('Dashboard transactions fetch error:', error.message);
     // Fall back to mock data instead of empty

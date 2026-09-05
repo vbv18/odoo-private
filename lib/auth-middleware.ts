@@ -3,11 +3,13 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
+export type RoleType = 'Admin' | 'Accountant' | 'Contact' | 'User';
+
 export interface AuthenticatedUser {
   id: string;
   loginId: string;
   email: string;
-  role: 'Admin' | 'Accountant' | 'Contact';
+  role: RoleType | string;
   name: string;
   contactId?: string; // For Contact users linked to a contact
 }
@@ -16,8 +18,27 @@ export interface AuthenticatedRequest extends NextApiRequest {
   user?: AuthenticatedUser;
 }
 
+export function normalizeRole(raw?: string): RoleType {
+  const r = (raw || '').toLowerCase().trim();
+  if (r === 'admin') return 'Admin';
+  if (r === 'accountant') return 'Accountant';
+  if (r === 'contact') return 'Contact';
+  if (r === 'user') return 'User';
+  return 'User';
+}
+
 // Role-based permissions
-export const PERMISSIONS = {
+export const PERMISSIONS: Record<RoleType, {
+  canManageMasterData: boolean;
+  canArchiveMasterData: boolean;
+  canCreateTransactions: boolean;
+  canViewAllReports: boolean;
+  canManageUsers: boolean;
+  canManageSettings: boolean;
+  canViewAllData: boolean;
+  canViewOwnTransactions: boolean;
+  canMakePayments: boolean;
+}> = {
   Admin: {
     canManageMasterData: true,
     canArchiveMasterData: true,
@@ -26,6 +47,8 @@ export const PERMISSIONS = {
     canManageUsers: true,
     canManageSettings: true,
     canViewAllData: true,
+    canViewOwnTransactions: true,
+    canMakePayments: true,
   },
   Accountant: {
     canManageMasterData: true,
@@ -35,15 +58,28 @@ export const PERMISSIONS = {
     canManageUsers: false,
     canManageSettings: false,
     canViewAllData: true,
+    canViewOwnTransactions: true,
+    canMakePayments: true,
   },
   Contact: {
     canManageMasterData: false,
     canArchiveMasterData: false,
-    canCreateTransactions: false, // Can only make payments
+    canCreateTransactions: true, // Allow contact/users to generate invoices & payments
     canViewAllReports: false,
     canManageUsers: false,
     canManageSettings: false,
     canViewAllData: false,
+    canViewOwnTransactions: true,
+    canMakePayments: true,
+  },
+  User: {
+    canManageMasterData: true,
+    canArchiveMasterData: false,
+    canCreateTransactions: true,
+    canViewAllReports: true,
+    canManageUsers: false,
+    canManageSettings: false,
+    canViewAllData: true,
     canViewOwnTransactions: true,
     canMakePayments: true,
   },
@@ -85,11 +121,18 @@ export function authenticateToken(
  * Middleware to check if user has specific role
  */
 export function requireRole(
-  roles: Array<'Admin' | 'Accountant' | 'Contact'>,
+  roles: Array<RoleType | string>,
   handler: (req: AuthenticatedRequest, res: NextApiResponse) => Promise<void>
 ) {
   return authenticateToken(async (req: AuthenticatedRequest, res: NextApiResponse) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const userRole = normalizeRole(req.user.role);
+    const normalizedRoles = roles.map((r) => normalizeRole(r));
+
+    if (!normalizedRoles.includes(userRole)) {
       return res.status(403).json({ 
         message: 'Insufficient permissions. Required role: ' + roles.join(' or ') 
       });
@@ -100,18 +143,6 @@ export function requireRole(
 }
 
 /**
- * Normalize any role string to a valid PERMISSIONS key.
- * Handles lowercase variants from old localStorage tokens.
- */
-function normalizeRole(raw: string | undefined): 'Admin' | 'Accountant' | 'Contact' {
-  const r = (raw || '').toLowerCase().trim();
-  if (r === 'admin') return 'Admin';
-  if (r === 'accountant') return 'Accountant';
-  if (r === 'contact') return 'Contact';
-  return 'Admin'; // default to Admin for unspecified or general roles
-}
-
-/**
  * Check if user has specific permission
  */
 export function hasPermission(
@@ -119,10 +150,10 @@ export function hasPermission(
   permission: keyof typeof PERMISSIONS.Admin
 ): boolean {
   if (!user) return false;
-  const role = normalizeRole(user.role);
-  const rolePermissions = PERMISSIONS[role];
+  const normalized = normalizeRole(user.role);
+  const rolePermissions = PERMISSIONS[normalized] || PERMISSIONS.User || PERMISSIONS.Admin;
   if (!rolePermissions) return false;
-  return (rolePermissions as any)[permission] === true;
+  return Boolean((rolePermissions as any)[permission]);
 }
 
 /**
@@ -149,14 +180,15 @@ export function requirePermission(
 export function filterByUserAccess(user: AuthenticatedUser | undefined, contactId: string): boolean {
   if (!user) return false;
   
-  // Admin and Accountant can access all data
-  if (user.role === 'Admin' || user.role === 'Accountant') {
+  const role = normalizeRole(user.role);
+  // Admin, Accountant, and User can access all data
+  if (role === 'Admin' || role === 'Accountant' || role === 'User') {
     return true;
   }
 
   // Contact can only access their own data
-  if (user.role === 'Contact') {
-    return user.contactId === contactId;
+  if (role === 'Contact') {
+    return !user.contactId || user.contactId === contactId;
   }
 
   return false;
