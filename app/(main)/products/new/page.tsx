@@ -10,7 +10,7 @@ export default function NewProductPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   const [formData, setFormData] = useState({
     product_name: '',
     product_type: '',
@@ -21,6 +21,7 @@ export default function NewProductPage() {
     sku: '',
     stock_quantity: '',
     unit_of_measure: 'Unit',
+    tax_rate: '18',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -33,11 +34,11 @@ export default function NewProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const newErrors: Record<string, string> = {};
     if (!formData.product_name.trim()) newErrors.product_name = 'Product name is required';
     if (!formData.product_type) newErrors.product_type = 'Product type is required';
-    
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -54,10 +55,21 @@ export default function NewProductPage() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          ...formData,
+          name: formData.product_name,
+          product_name: formData.product_name,
+          product_type: formData.product_type,
+          category: formData.category,
+          description: formData.description,
+          sku: formData.sku,
+          unit: formData.unit_of_measure,
+          unit_of_measure: formData.unit_of_measure,
+          sale_price: parseFloat(formData.sales_price) || 0,
           sales_price: parseFloat(formData.sales_price) || 0,
+          purchase_price: parseFloat(formData.cost_price) || 0,
           cost_price: parseFloat(formData.cost_price) || 0,
           stock_quantity: parseFloat(formData.stock_quantity) || 0,
+          stock: parseFloat(formData.stock_quantity) || 0,
+          tax_rate: parseFloat(formData.tax_rate) || 18,
         }),
       });
 
@@ -163,9 +175,9 @@ export default function NewProductPage() {
             </div>
             {formData.sales_price && formData.cost_price && (
               <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-[12px] text-blue-700">
-                Margin: ₹{(parseFloat(formData.sales_price) - parseFloat(formData.cost_price)).toFixed(2)} 
-                ({formData.cost_price !== '0' ? 
-                  ((parseFloat(formData.sales_price) - parseFloat(formData.cost_price)) / parseFloat(formData.cost_price) * 100).toFixed(1) 
+                Margin: ₹{(parseFloat(formData.sales_price) - parseFloat(formData.cost_price)).toFixed(2)}
+                ({formData.cost_price !== '0' ?
+                  ((parseFloat(formData.sales_price) - parseFloat(formData.cost_price)) / parseFloat(formData.cost_price) * 100).toFixed(1)
                   : '0'}%)
               </div>
             )}

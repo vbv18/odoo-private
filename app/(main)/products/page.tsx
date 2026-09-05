@@ -9,14 +9,18 @@ import { PlusIcon, SearchIcon } from '@/components/icons';
 
 interface Product {
   id: string;
-  product_name: string;
-  product_type: 'Goods' | 'Service' | 'Combo';
-  sales_price: number;
-  cost_price: number;
-  category: string;
-  sku: string;
-  stock_quantity: number;
-  is_archived: boolean;
+  name?: string;
+  product_name?: string;
+  product_type?: 'Goods' | 'Service' | 'Combo' | string;
+  sale_price?: number;
+  sales_price?: number;
+  purchase_price?: number;
+  cost_price?: number;
+  category?: string;
+  sku?: string;
+  stock_quantity?: number;
+  stock?: number;
+  is_archived?: boolean;
 }
 
 export default function ProductsPage() {
@@ -46,7 +50,7 @@ export default function ProductsPage() {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      
+
       let url = '/api/products?';
       if (filterType) url += `type=${filterType}&`;
       if (search) url += `search=${search}&`;
@@ -57,7 +61,7 @@ export default function ProductsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setProducts(data.products);
+        setProducts(data.products || []);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -77,7 +81,7 @@ export default function ProductsPage() {
   const columns = [
     {
       header: 'Product Name',
-      accessor: 'product_name' as keyof Product,
+      accessor: (row: Product) => row.product_name || row.name || '-',
       className: 'font-medium',
     },
     {
@@ -86,19 +90,22 @@ export default function ProductsPage() {
     },
     {
       header: 'Type',
-      accessor: (row: Product) => (
-        <span
-          className={`inline-block px-2 py-1 text-[11px] font-semibold rounded-full ${
-            row.product_type === 'Goods'
-              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-              : row.product_type === 'Service'
-              ? 'bg-purple-50 text-purple-700 border border-purple-200'
-              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-          }`}
-        >
-          {row.product_type}
-        </span>
-      ),
+      accessor: (row: Product) => {
+        const type = row.product_type || 'Goods';
+        return (
+          <span
+            className={`inline-block px-2 py-1 text-[11px] font-semibold rounded-full ${
+              type === 'Goods'
+                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                : type === 'Service'
+                ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            }`}
+          >
+            {type}
+          </span>
+        );
+      },
     },
     {
       header: 'Category',
@@ -106,18 +113,22 @@ export default function ProductsPage() {
     },
     {
       header: 'Sales Price',
-      accessor: (row: Product) => formatCurrency(row.sales_price),
+      accessor: (row: Product) => formatCurrency(parseFloat(String(row.sales_price ?? row.sale_price ?? 0)) || 0),
       className: 'text-right font-medium tabular-nums',
     },
     {
       header: 'Cost Price',
-      accessor: (row: Product) => formatCurrency(row.cost_price),
+      accessor: (row: Product) => formatCurrency(parseFloat(String(row.cost_price ?? row.purchase_price ?? 0)) || 0),
       className: 'text-right tabular-nums',
     },
     {
       header: 'Stock',
-      accessor: (row: Product) => 
-        row.product_type === 'Goods' ? row.stock_quantity.toFixed(2) : '-',
+      accessor: (row: Product) => {
+        const type = (row.product_type || 'Goods').toLowerCase();
+        if (type === 'service') return '-';
+        const qty = parseFloat(String(row.stock_quantity ?? row.stock ?? 0)) || 0;
+        return qty.toFixed(2);
+      },
       className: 'text-right tabular-nums',
     },
   ];

@@ -18,7 +18,7 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse) {
     let orders = getSalesOrders();
     if (status) orders = orders.filter((o: any) => o.status === status);
     if (search) orders = orders.filter((o: any) =>
-      o.order_number.toLowerCase().includes((search as string).toLowerCase()) ||
+      (o.so_number || o.order_number || '').toLowerCase().includes((search as string).toLowerCase()) ||
       (o.customer_name || '').toLowerCase().includes((search as string).toLowerCase())
     );
     return res.status(200).json({ orders, total: orders.length, source: 'mock' });
@@ -30,7 +30,7 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse) {
     const params: any[] = [];
     let n = 1;
     if (status) { query += ` AND so.status = $${n}`; params.push(status); n++; }
-    if (search) { query += ` AND (so.order_number ILIKE $${n} OR c.name ILIKE $${n})`; params.push(`%${search}%`); n++; }
+    if (search) { query += ` AND (so.so_number ILIKE $${n} OR c.name ILIKE $${n})`; params.push(`%${search}%`); n++; }
     query += ` ORDER BY so.created_at DESC`;
     const result = await pool.query(query, params);
     return res.status(200).json({ orders: result.rows, total: result.rows.length });
@@ -40,9 +40,14 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse) {
 }
 
 async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
-  const { customer_id, order_date, delivery_date, notes, items } = req.body;
-  if (!customer_id || !order_date || !items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ message: 'customer_id, order_date, and items are required' });
+  const customer_id = req.body.customer_id;
+  const so_date = req.body.so_date || req.body.order_date;
+  const expected_delivery_date = req.body.expected_delivery_date || req.body.delivery_date || null;
+  const notes = req.body.notes || null;
+  const items = req.body.items;
+
+  if (!customer_id || !so_date || !items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ message: 'customer_id, so_date, and items are required' });
   }
   let subtotal = 0, tax_amount = 0;
   for (const item of items) {
@@ -51,11 +56,35 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
     tax_amount += (lineSub * (parseFloat(item.tax_rate) || 0)) / 100;
   }
   const total_amount = subtotal + tax_amount;
+
+  const isValidUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
   const dbOk = await isDbAvailable();
   if (!dbOk) {
     const orders = getSalesOrders();
     const seq = orders.length + 1;
-    const newOrder = { id: randomUUID(), order_number: `SO-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`, customer_id, customer_name: 'Customer', order_date, delivery_date: delivery_date || null, status: 'Draft', subtotal, tax_amount, total_amount, notes: notes || null, created_at: new Date().toISOString() };
+    const newOrder = {
+      id: randomUUID(),
+      so_number: `SO-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`,
+      order_number: `SO-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`,
+      customer_id,
+      customer_name: 'Customer',
+      so_date,
+      order_date: so_date,
+      expected_delivery_date,
+      delivery_date: expected_delivery_date,
+      status: 'Draft',
+      subtotal,
+      tax_amount,
+      total_amount,
+      notes,
+      created_at: new Date().toISOString(),
+      items: items.map((it: any) => ({
+        ...it,
+        id: randomUUID(),
+        line_total: (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0),
+      })),
+    };
     orders.push(newOrder);
     saveSalesOrders(orders);
     return res.status(201).json({ message: 'Sales order created', order: newOrder, source: 'mock' });
@@ -65,16 +94,20 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
     try {
       await client.query('BEGIN');
       const seq = (await client.query('SELECT COUNT(*) FROM sales_orders')).rows[0].count;
-      const order_number = `SO-${new Date().getFullYear()}-${String(parseInt(seq) + 1).padStart(4, '0')}`;
+      const so_number = `SO-${new Date().getFullYear()}-${String(parseInt(seq) + 1).padStart(4, '0')}`;
+      const safeCustomerId = isValidUuid(customer_id) ? customer_id : null;
       const soRes = await client.query(
-        `INSERT INTO sales_orders (order_number, customer_id, order_date, delivery_date, status, subtotal, tax_amount, total_amount, notes, created_by)
+        `INSERT INTO sales_orders (so_number, customer_id, so_date, expected_delivery_date, status, subtotal, tax_amount, total_amount, notes, created_by)
          VALUES ($1,$2,$3,$4,'Draft',$5,$6,$7,$8,$9) RETURNING *`,
-        [order_number, customer_id, order_date, delivery_date || null, subtotal, tax_amount, total_amount, notes || null, req.user?.id || null]
+        [so_number, safeCustomerId, so_date, expected_delivery_date, subtotal, tax_amount, total_amount, notes, req.user?.id || null]
       );
       for (const item of items) {
+        const lineTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0);
+        const safeProductId = isValidUuid(item.product_id) ? item.product_id : null;
         await client.query(
-          `INSERT INTO sales_order_items (sales_order_id, product_id, description, quantity, unit_price, tax_rate) VALUES ($1,$2,$3,$4,$5,$6)`,
-          [soRes.rows[0].id, item.product_id || null, item.description || '', item.quantity, item.unit_price, item.tax_rate || 0]
+          `INSERT INTO sales_order_items (sales_order_id, product_id, description, quantity, unit_price, tax_rate, line_total)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [soRes.rows[0].id, safeProductId, item.description || '', parseFloat(item.quantity) || 0, parseFloat(item.unit_price) || 0, parseFloat(item.tax_rate) || 0, lineTotal]
         );
       }
       await client.query('COMMIT');

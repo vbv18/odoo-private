@@ -1,9 +1,43 @@
 import { NextApiResponse } from 'next';
 import { pool } from '@/lib/db';
 import { AuthenticatedRequest, requirePermission } from '@/lib/auth-middleware';
+import { isDbAvailable } from '@/lib/db-safe';
+import { getChartOfAccounts } from '@/lib/mock-data';
 
 async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ message: 'Method not allowed' });
+
+  const dbOk = await isDbAvailable();
+
+  const getMockData = () => {
+    const coa = getChartOfAccounts();
+    let totalDebit = 0;
+    let totalCredit = 0;
+    const accounts = coa.map((row: any) => {
+      const bal = parseFloat(row.current_balance) || 0;
+      const isDebitType = ['Asset', 'Expense'].includes(row.account_type);
+      const debit = isDebitType && bal >= 0 ? bal : 0;
+      const credit = !isDebitType && bal >= 0 ? bal : (bal < 0 ? Math.abs(bal) : 0);
+      totalDebit += debit;
+      totalCredit += credit;
+      return {
+        ...row,
+        debit,
+        credit,
+      };
+    });
+    return {
+      accounts,
+      totalDebit,
+      totalCredit,
+      isBalanced: Math.abs(totalDebit - totalCredit) < 0.01,
+      source: 'mock',
+    };
+  };
+
+  if (!dbOk) {
+    return res.status(200).json(getMockData());
+  }
 
   try {
     const result = await pool.query(`
@@ -42,7 +76,7 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
       isBalanced: Math.abs(totalDebit - totalCredit) < 0.01,
     });
   } catch (error: any) {
-    return res.status(500).json({ message: 'Failed to generate Trial Balance', error: error.message });
+    return res.status(200).json(getMockData());
   }
 }
 

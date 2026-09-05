@@ -103,11 +103,11 @@ export function saveJournalEntries(data: unknown[]) {
 
 // ─── Products ─────────────────────────────────────────────────────────────────
 const DEFAULT_PRODUCTS = [
-  { id: 'p1', name: 'Teak Wood Chair', sku: 'TWC-001', category: 'Furniture', unit: 'Nos', purchase_price: 2500, sale_price: 4200, tax_rate: 18, is_archived: false, created_at: '2026-01-20T10:00:00Z' },
-  { id: 'p2', name: 'Wooden Dining Table', sku: 'WDT-002', category: 'Furniture', unit: 'Nos', purchase_price: 12000, sale_price: 18500, tax_rate: 18, is_archived: false, created_at: '2026-01-25T10:00:00Z' },
-  { id: 'p3', name: 'Steel Almirah', sku: 'SA-003', category: 'Storage', unit: 'Nos', purchase_price: 8000, sale_price: 12000, tax_rate: 18, is_archived: false, created_at: '2026-02-01T10:00:00Z' },
-  { id: 'p4', name: 'Office Desk', sku: 'OD-004', category: 'Office', unit: 'Nos', purchase_price: 5500, sale_price: 8800, tax_rate: 18, is_archived: false, created_at: '2026-02-10T10:00:00Z' },
-  { id: 'p5', name: 'Sofa Set (3+1+1)', sku: 'SS-005', category: 'Furniture', unit: 'Set', purchase_price: 22000, sale_price: 35000, tax_rate: 18, is_archived: false, created_at: '2026-02-15T10:00:00Z' },
+  { id: 'p1', name: 'Teak Wood Chair', product_name: 'Teak Wood Chair', sku: 'TWC-001', category: 'Furniture', unit: 'Nos', unit_of_measure: 'Nos', purchase_price: 2500, cost_price: 2500, sale_price: 4200, sales_price: 4200, tax_rate: 18, product_type: 'Goods', stock_quantity: 15, stock: 15, is_archived: false, created_at: '2026-01-20T10:00:00Z' },
+  { id: 'p2', name: 'Wooden Dining Table', product_name: 'Wooden Dining Table', sku: 'WDT-002', category: 'Furniture', unit: 'Nos', unit_of_measure: 'Nos', purchase_price: 12000, cost_price: 12000, sale_price: 18500, sales_price: 18500, tax_rate: 18, product_type: 'Goods', stock_quantity: 8, stock: 8, is_archived: false, created_at: '2026-01-25T10:00:00Z' },
+  { id: 'p3', name: 'Steel Almirah', product_name: 'Steel Almirah', sku: 'SA-003', category: 'Storage', unit: 'Nos', unit_of_measure: 'Nos', purchase_price: 8000, cost_price: 8000, sale_price: 12000, sales_price: 12000, tax_rate: 18, product_type: 'Goods', stock_quantity: 12, stock: 12, is_archived: false, created_at: '2026-02-01T10:00:00Z' },
+  { id: 'p4', name: 'Office Desk', product_name: 'Office Desk', sku: 'OD-004', category: 'Office', unit: 'Nos', unit_of_measure: 'Nos', purchase_price: 5500, cost_price: 5500, sale_price: 8800, sales_price: 8800, tax_rate: 18, product_type: 'Goods', stock_quantity: 20, stock: 20, is_archived: false, created_at: '2026-02-10T10:00:00Z' },
+  { id: 'p5', name: 'Sofa Set (3+1+1)', product_name: 'Sofa Set (3+1+1)', sku: 'SS-005', category: 'Furniture', unit: 'Set', unit_of_measure: 'Set', purchase_price: 22000, cost_price: 22000, sale_price: 35000, sales_price: 35000, tax_rate: 18, product_type: 'Goods', stock_quantity: 5, stock: 5, is_archived: false, created_at: '2026-02-15T10:00:00Z' },
 ];
 
 export function getProducts() {

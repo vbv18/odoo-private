@@ -1,12 +1,14 @@
 import { Pool, QueryResult, QueryResultRow } from 'pg';
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT || 5432),
-  database: process.env.DB_NAME || 'ledgercraft',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'password',
-});
+const pool = process.env.DATABASE_URL
+  ? new Pool({ connectionString: process.env.DATABASE_URL })
+  : new Pool({
+      host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
+      port: Number(process.env.DB_PORT || process.env.PGPORT || 5432),
+      database: process.env.DB_NAME || process.env.PGDATABASE || 'ledgercraft',
+      user: process.env.DB_USER || process.env.PGUSER || 'postgres',
+      password: process.env.DB_PASSWORD || process.env.PGPASSWORD || 'postgres123',
+    });
 
 export const query = <T extends QueryResultRow = QueryResultRow>(
   text: string,
