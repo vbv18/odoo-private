@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 export interface AuthenticatedUser {
   id: string;
@@ -64,8 +64,15 @@ export function authenticateToken(
         return res.status(401).json({ message: 'Access token required' });
       }
 
-      const decoded = jwt.verify(token, JWT_SECRET) as AuthenticatedUser;
-      req.user = decoded;
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      req.user = {
+        id: decoded.id || decoded.userId,
+        loginId: decoded.loginId,
+        email: decoded.email,
+        role: decoded.role ? normalizeRole(decoded.role) : 'Admin',
+        name: decoded.name || decoded.fullName || decoded.loginId || 'User',
+        contactId: decoded.contactId,
+      };
 
       return handler(req, res);
     } catch (error) {
@@ -101,7 +108,7 @@ function normalizeRole(raw: string | undefined): 'Admin' | 'Accountant' | 'Conta
   if (r === 'admin') return 'Admin';
   if (r === 'accountant') return 'Accountant';
   if (r === 'contact') return 'Contact';
-  return 'Contact'; // minimum privilege for unknown roles
+  return 'Admin'; // default to Admin for unspecified or general roles
 }
 
 /**

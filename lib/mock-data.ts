@@ -119,15 +119,15 @@ export function saveProducts(data: unknown[]) {
 
 // ─── Budgets ─────────────────────────────────────────────────────────────────
 const DEFAULT_BUDGETS = [
-  { id: 'b1', budget_name: 'FY 2026-27 Operating Budget', fiscal_year: '2026-27', total_amount: 2000000, spent_amount: 450000, status: 'Active', start_date: '2026-04-01', end_date: '2027-03-31', created_at: '2026-04-01T10:00:00Z' },
-  { id: 'b2', budget_name: 'Q2 Marketing Budget', fiscal_year: '2026-27', total_amount: 200000, spent_amount: 85000, status: 'Active', start_date: '2026-07-01', end_date: '2026-09-30', created_at: '2026-07-01T10:00:00Z' },
-  { id: 'b3', budget_name: 'Infrastructure Capex', fiscal_year: '2026-27', total_amount: 500000, spent_amount: 500000, status: 'Exhausted', start_date: '2026-04-01', end_date: '2026-06-30', created_at: '2026-04-01T10:00:00Z' },
+  { id: 'b1', budget_name: 'FY 2026-27 Operating Budget', fiscal_year: '2026-27', total_amount: 2000000, planned_amount: 2000000, spent_amount: 450000, achieved_amount: 450000, status: 'Active', start_date: '2026-04-01', period_start: '2026-04-01', end_date: '2027-03-31', period_end: '2027-03-31', created_at: '2026-04-01T10:00:00Z' },
+  { id: 'b2', budget_name: 'Q2 Marketing Budget', fiscal_year: '2026-27', total_amount: 200000, planned_amount: 200000, spent_amount: 85000, achieved_amount: 85000, status: 'Active', start_date: '2026-07-01', period_start: '2026-07-01', end_date: '2026-09-30', period_end: '2026-09-30', created_at: '2026-07-01T10:00:00Z' },
+  { id: 'b3', budget_name: 'Infrastructure Capex', fiscal_year: '2026-27', total_amount: 500000, planned_amount: 500000, spent_amount: 500000, achieved_amount: 500000, status: 'Exhausted', start_date: '2026-04-01', period_start: '2026-04-01', end_date: '2026-06-30', period_end: '2026-06-30', created_at: '2026-04-01T10:00:00Z' },
 ];
 
-export function getBudgets() {
+export function getBudgets(): any[] {
   return readJson('budgets.json', DEFAULT_BUDGETS);
 }
-export function saveBudgets(data: unknown[]) {
+export function saveBudgets(data: any[]) {
   writeJson('budgets.json', data);
 }
 

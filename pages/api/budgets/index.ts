@@ -15,7 +15,16 @@ async function handleGet(_req: AuthenticatedRequest, res: NextApiResponse) {
   const dbOk = await isDbAvailable();
   if (!dbOk) return res.status(200).json({ budgets: getBudgets(), source: 'mock' });
   try {
-    const result = await pool.query(`SELECT * FROM budgets ORDER BY created_at DESC`);
+    const result = await pool.query(`
+      SELECT b.*,
+             aa.account_name as analytic_account_name,
+             u.name as responsible_person_name
+      FROM budgets b
+      LEFT JOIN analytic_accounts aa ON b.analytic_account_id = aa.id
+      LEFT JOIN users u ON b.responsible_person = u.id
+      WHERE b.is_archived = false
+      ORDER BY b.created_at DESC
+    `);
     return res.status(200).json({ budgets: result.rows });
   } catch {
     return res.status(200).json({ budgets: getBudgets(), source: 'mock' });
@@ -23,23 +32,61 @@ async function handleGet(_req: AuthenticatedRequest, res: NextApiResponse) {
 }
 
 async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
-  const { budget_name, fiscal_year, total_amount, start_date, end_date } = req.body;
-  if (!budget_name || !fiscal_year || !total_amount) {
-    return res.status(400).json({ message: 'budget_name, fiscal_year, and total_amount are required' });
+  const { budget_name, analytic_account_id, period_start, period_end, planned_amount, status, responsible_person, fiscal_year, total_amount, start_date, end_date } = req.body;
+  
+  const finalBudgetTitle = budget_name || fiscal_year;
+  const rawAmount = planned_amount !== undefined && planned_amount !== null && planned_amount !== '' 
+    ? planned_amount 
+    : total_amount;
+  const finalAmount = rawAmount !== undefined && rawAmount !== null ? parseFloat(String(rawAmount)) : NaN;
+  const finalStart = period_start || start_date || '2026-04-01';
+  const finalEnd = period_end || end_date || '2027-03-31';
+
+  if (!finalBudgetTitle || isNaN(finalAmount)) {
+    return res.status(400).json({ message: 'budget_name and planned_amount are required' });
   }
+
   const dbOk = await isDbAvailable();
   if (!dbOk) {
     const budgets = getBudgets();
-    const newB = { id: randomUUID(), budget_name, fiscal_year, total_amount: parseFloat(total_amount), spent_amount: 0, status: 'Active', start_date: start_date || null, end_date: end_date || null, created_at: new Date().toISOString() };
+    const newB = {
+      id: randomUUID(),
+      budget_name: finalBudgetTitle,
+      fiscal_year: fiscal_year || finalBudgetTitle,
+      total_amount: finalAmount,
+      planned_amount: finalAmount,
+      spent_amount: 0,
+      achieved_amount: 0,
+      status: status || 'Active',
+      start_date: finalStart,
+      period_start: finalStart,
+      end_date: finalEnd,
+      period_end: finalEnd,
+      analytic_account_id: analytic_account_id || null,
+      analytic_account_name: null,
+      responsible_person: responsible_person || null,
+      responsible_person_name: null,
+      created_at: new Date().toISOString(),
+    };
     budgets.push(newB);
     saveBudgets(budgets);
     return res.status(201).json({ message: 'Budget created', budget: newB, source: 'mock' });
   }
+
   try {
     const result = await pool.query(
-      `INSERT INTO budgets (budget_name, fiscal_year, total_amount, spent_amount, status, start_date, end_date, created_by)
-       VALUES ($1,$2,$3,0,'Active',$4,$5,$6) RETURNING *`,
-      [budget_name, fiscal_year, total_amount, start_date || null, end_date || null, req.user?.id || null]
+      `INSERT INTO budgets (budget_name, analytic_account_id, period_start, period_end, planned_amount, status, responsible_person, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [
+        finalBudgetTitle,
+        analytic_account_id || null,
+        finalStart,
+        finalEnd,
+        finalAmount,
+        status || 'Active',
+        responsible_person || null,
+        req.user?.id || null,
+      ]
     );
     return res.status(201).json({ message: 'Budget created successfully', budget: result.rows[0] });
   } catch (error: any) {
@@ -48,3 +95,4 @@ async function handleCreate(req: AuthenticatedRequest, res: NextApiResponse) {
 }
 
 export default authenticateToken(handler);
+
