@@ -78,7 +78,7 @@ const LoginPage: React.FC = () => {
             <Input
               type="text"
               name="loginId"
-              placeholder="Enter Login Id"
+              placeholder="Login Id or Email"
               value={formData.loginId}
               onChange={handleInputChange}
               required

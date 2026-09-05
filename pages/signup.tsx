@@ -14,17 +14,11 @@ const SignupPage: React.FC = () => {
     password: '',
     confirmPassword: '',
   });
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
 
   const validateForm = (): boolean => {
-    const newErrors: {[key: string]: string} = {};
-
-    if (!formData.loginId) {
-      newErrors.loginId = 'Login ID is required';
-    } else if (formData.loginId.length < 6 || formData.loginId.length > 12) {
-      newErrors.loginId = 'Login ID must be between 6-12 characters';
-    }
+    const newErrors: { [key: string]: string } = {};
 
     if (!formData.email) {
       newErrors.email = 'Email ID is required';
@@ -32,16 +26,12 @@ const SignupPage: React.FC = () => {
       newErrors.email = 'Please enter a valid email address';
     }
 
+    if (formData.loginId && (formData.loginId.length < 6 || formData.loginId.length > 12)) {
+      newErrors.loginId = 'Login ID must be between 6-12 characters';
+    }
+
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length <= 8) {
-      newErrors.password = 'Password must be more than 8 characters';
-    } else if (!/(?=.*[a-z])/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one lowercase letter';
-    } else if (!/(?=.*[A-Z])/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one uppercase letter';
-    } else if (!/(?=.*[!@#$%^&*(),.?":{}|<>])/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one special character';
     }
 
     if (formData.password !== formData.confirmPassword) {
@@ -54,21 +44,20 @@ const SignupPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
 
     setLoading(true);
-    
+
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          loginId: formData.loginId,
+          loginId: formData.loginId || undefined,
           email: formData.email,
           password: formData.password,
           role: 'user',
-        })
+        }),
       });
 
       const data = await response.json();
@@ -90,10 +79,9 @@ const SignupPage: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name] || errors.general) {
+      setErrors((prev) => ({ ...prev, [name]: '', general: '' }));
     }
   };
 
@@ -123,13 +111,11 @@ const SignupPage: React.FC = () => {
             <Input
               type="text"
               name="loginId"
-              placeholder="Enter Login Id"
+              placeholder="Login Id (optional)"
               value={formData.loginId}
               onChange={handleInputChange}
               error={errors.loginId}
-              required
             />
-            
             <Input
               type="email"
               name="email"
@@ -139,7 +125,6 @@ const SignupPage: React.FC = () => {
               error={errors.email}
               required
             />
-            
             <Input
               type="password"
               name="password"
@@ -149,7 +134,6 @@ const SignupPage: React.FC = () => {
               error={errors.password}
               required
             />
-            
             <Input
               type="password"
               name="confirmPassword"
@@ -166,16 +150,10 @@ const SignupPage: React.FC = () => {
           </Button>
         </form>
 
-        <div className="text-center text-sm space-y-2">
-          <div>
-            <Link href="/forgot-password" className="text-ai-blue hover:text-blue-700 transition-colors duration-150">
-              Forgot Password
-            </Link>
-            <span className="text-secondary-text mx-2">|</span>
-            <Link href="/login" className="text-ai-blue hover:text-blue-700 transition-colors duration-150">
-              Sign In
-            </Link>
-          </div>
+        <div className="text-center text-sm">
+          <Link href="/login" className="text-ai-blue hover:text-blue-700 transition-colors duration-150">
+            Already have an account? Sign In
+          </Link>
         </div>
       </div>
     </AuthLayout>

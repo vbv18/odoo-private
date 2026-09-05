@@ -31,8 +31,8 @@ node_modules/
 *.swo
 *.swn
 .DS_Store
-.env.local
-.env.*.local
+data/
+.env
 
 # OS
 Thumbs.db
